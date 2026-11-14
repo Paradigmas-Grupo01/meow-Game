@@ -14,9 +14,9 @@ from typing import Annotated, Literal
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app import prolog
+from app import prolog, meowdoku_prolog
 
-app = FastAPI(title="Sudoku (Prolog + Elm)")
+app = FastAPI(title="Meowdoku (Prolog + Elm)")
 
 # Uma linha tem exatamente 9 inteiros de 0 a 9; um tabuleiro tem 9 linhas.
 # O Pydantic rejeita automaticamente (erro 422) qualquer coisa fora disso.
@@ -72,3 +72,63 @@ def hint(request: BoardRequest) -> HintResponse:
     except prolog.BoardComplete:
         raise HTTPException(status_code=422, detail=BOARD_COMPLETE) from None
     return HintResponse(row=row, col=col, value=value)
+
+
+# ==============================================================================
+# Rotas do Meowdoku (Cat Queens)
+# ==============================================================================
+
+class MeowdokuExampleResponse(BaseModel):
+    name: str
+    size: int
+    cats_per_unit: int
+    regions: list[list[int]]
+
+
+class MeowdokuSolveRequest(BaseModel):
+    regions: list[list[int]]
+    cats_per_unit: int = 1
+
+
+class MeowdokuSolveResponse(BaseModel):
+    solution: list[list[int]]
+
+
+class MeowdokuHintRequest(BaseModel):
+    regions: list[list[int]]
+    board: list[list[int]]
+    cats_per_unit: int = 1
+
+
+class MeowdokuHintResponse(BaseModel):
+    row: int
+    col: int
+    value: int
+    reason: str
+
+
+@app.get("/api/meowdoku/example")
+def meowdoku_example(name: str = "classic_6x6") -> MeowdokuExampleResponse:
+    data = meowdoku_prolog.get_example(name)
+    return MeowdokuExampleResponse(**data)
+
+
+@app.post("/api/meowdoku/solve")
+def meowdoku_solve(request: MeowdokuSolveRequest) -> MeowdokuSolveResponse:
+    try:
+        sol = meowdoku_prolog.solve(request.regions, request.cats_per_unit)
+        return MeowdokuSolveResponse(solution=sol)
+    except meowdoku_prolog.NoSolution as e:
+        raise HTTPException(status_code=422, detail=str(e)) from None
+
+
+@app.post("/api/meowdoku/hint")
+def meowdoku_hint(request: MeowdokuHintRequest) -> MeowdokuHintResponse:
+    try:
+        h = meowdoku_prolog.hint(request.regions, request.board, request.cats_per_unit)
+        return MeowdokuHintResponse(**h)
+    except meowdoku_prolog.BoardComplete:
+        raise HTTPException(status_code=422, detail="O tabuleiro já possui todos os gatos posicionados!") from None
+    except meowdoku_prolog.NoSolution:
+        raise HTTPException(status_code=422, detail="Configuração inconsistente; não foi possível derivar uma dica.") from None
+

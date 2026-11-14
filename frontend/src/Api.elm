@@ -1,10 +1,15 @@
 module Api exposing
     ( Difficulty(..)
     , Hint
+    , MeowdokuHint
+    , MeowdokuPuzzle
     , difficultyLabel
+    , fetchMeowdokuExample
     , generate
     , hint
+    , hintMeowdoku
     , solve
+    , solveMeowdoku
     )
 
 {-| Comunicação com o backend (FastAPI + Prolog).
@@ -185,3 +190,81 @@ errorDetail status body =
 
         Err _ ->
             "Erro no servidor (código " ++ String.fromInt status ++ ")."
+
+
+-- ==============================================================================
+-- MEOWDOKU (Cat Queens) API
+-- ==============================================================================
+
+type alias MeowdokuPuzzle =
+    { name : String
+    , size : Int
+    , catsPerUnit : Int
+    , regions : List (List Int)
+    }
+
+
+type alias MeowdokuHint =
+    { row : Int
+    , col : Int
+    , value : Int
+    , reason : String
+    }
+
+
+fetchMeowdokuExample : String -> (Result String MeowdokuPuzzle -> msg) -> Cmd msg
+fetchMeowdokuExample name toMsg =
+    Http.get
+        { url = "/api/meowdoku/example?name=" ++ name
+        , expect = expectJson toMsg meowdokuPuzzleDecoder
+        }
+
+
+solveMeowdoku : List (List Int) -> Int -> (Result String (List (List Int)) -> msg) -> Cmd msg
+solveMeowdoku regions catsPerUnit toMsg =
+    Http.post
+        { url = "/api/meowdoku/solve"
+        , body =
+            Http.jsonBody
+                (Encode.object
+                    [ ( "regions", Encode.list (Encode.list Encode.int) regions )
+                    , ( "cats_per_unit", Encode.int catsPerUnit )
+                    ]
+                )
+        , expect = expectJson toMsg (Decode.field "solution" (Decode.list (Decode.list Decode.int)))
+        }
+
+
+hintMeowdoku : List (List Int) -> List (List Int) -> Int -> (Result String MeowdokuHint -> msg) -> Cmd msg
+hintMeowdoku regions board catsPerUnit toMsg =
+    Http.post
+        { url = "/api/meowdoku/hint"
+        , body =
+            Http.jsonBody
+                (Encode.object
+                    [ ( "regions", Encode.list (Encode.list Encode.int) regions )
+                    , ( "board", Encode.list (Encode.list Encode.int) board )
+                    , ( "cats_per_unit", Encode.int catsPerUnit )
+                    ]
+                )
+        , expect = expectJson toMsg meowdokuHintDecoder
+        }
+
+
+meowdokuPuzzleDecoder : Decoder MeowdokuPuzzle
+meowdokuPuzzleDecoder =
+    Decode.map4 MeowdokuPuzzle
+        (Decode.field "name" Decode.string)
+        (Decode.field "size" Decode.int)
+        (Decode.field "cats_per_unit" Decode.int)
+        (Decode.field "regions" (Decode.list (Decode.list Decode.int)))
+
+
+meowdokuHintDecoder : Decoder MeowdokuHint
+meowdokuHintDecoder =
+    Decode.map4 MeowdokuHint
+        (Decode.field "row" Decode.int)
+        (Decode.field "col" Decode.int)
+        (Decode.field "value" Decode.int)
+        (Decode.field "reason" Decode.string)
+
