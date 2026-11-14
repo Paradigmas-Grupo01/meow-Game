@@ -113,3 +113,4 @@ def _fallback_solve(regions: Grid, cats_per_unit: int) -> Grid:
             [0, 0, 1, 0, 0, 0]
         ]
     return [[0] * len(regions) for _ in regions]
+

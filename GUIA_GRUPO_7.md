@@ -7,7 +7,7 @@
 
 ## 1. Distribuição de Papéis para os 7 Integrantes
 
-Esta tabela deve ser transposta para a **Seção 10 do `RELATORIO.md`**. Cada integrante possui propriedade clara de arquivos e código, o que blinda o grupo na **avaliação 360 graus** e na **arguição oral individual** do professor:
+Esta tabela deve ser transposta para a Seção 10 do RELATORIO.md. Cada integrante possui atribuições claras de código e documentação, facilitando a prestação de contas na avaliação 360 e na arguição oral individual:
 
 | Integrante | Papel no Projeto | Arquivos Principais | O que defender na apresentação oral? |
 | :--- | :--- | :--- | :--- |
@@ -66,3 +66,4 @@ Ele garante que:
 - Nenhum colchete `[...]` ficou sem preenchimento.
 - Todas as 13 seções e subseções estão presentes e válidas.
 - Todos os 7 integrantes constam na tabela da Seção 1 e Seção 10.
+

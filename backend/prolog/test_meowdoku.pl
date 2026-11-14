@@ -47,3 +47,4 @@ test(hint_provides_valid_step, true(Val == 1)) :-
     integer(R), integer(C), string(Reason).
 
 :- end_tests(meowdoku_core).
+

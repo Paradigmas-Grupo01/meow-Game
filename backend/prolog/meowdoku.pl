@@ -245,3 +245,4 @@ print_grid([]).
 print_grid([Row|Rest]) :-
     format("~w~n", [Row]),
     print_grid(Rest).
+
