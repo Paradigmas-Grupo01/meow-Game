@@ -3,17 +3,25 @@ module Meowdoku exposing
     , Cell
     , CellMark(..)
     , boardToMatrix
+    , cells
     , checkConflicts
     , countCatsInCol
     , countCatsInRegion
     , countCatsInRow
     , cycleMark
+    , cycleMarkAt
     , getCell
     , initBoard
     , isSolved
+    , markFromInt
+    , markToInt
     , markToString
-    , setMark
+    , regionsToMatrix
+    , setMarkAt
+    , setMarksFromMatrix
     )
+
+import Array exposing (Array)
 
 
 type CellMark
@@ -35,6 +43,41 @@ markToString mark =
             "G"
 
 
+cycleMark : CellMark -> CellMark
+cycleMark mark =
+    case mark of
+        Empty ->
+            MarkedX
+
+        MarkedX ->
+            HasCat
+
+        HasCat ->
+            Empty
+
+
+markToInt : CellMark -> Int
+markToInt mark =
+    case mark of
+        Empty ->
+            0
+
+        MarkedX ->
+            0
+
+        HasCat ->
+            1
+
+
+markFromInt : Int -> CellMark
+markFromInt value =
+    if value == 1 then
+        HasCat
+
+    else
+        Empty
+
+
 type alias Cell =
     { row : Int
     , col : Int
@@ -46,106 +89,92 @@ type alias Cell =
 
 type alias Board =
     { size : Int
-    , cells : List Cell
     , catsPerUnit : Int
+    , rows : Array (Array Cell)
     }
 
 
 initBoard : Int -> Int -> List (List Int) -> Board
 initBoard size catsPerUnit regionMatrix =
     let
-        createdCells =
-            regionMatrix
-                |> List.indexedMap
-                    (\r rowList ->
-                        rowList
-                            |> List.indexedMap
-                                (\c regId ->
-                                    { row = r
-                                    , col = c
-                                    , regionId = regId
-                                    , mark = Empty
-                                    , hasConflict = False
-                                    }
-                                )
-                    )
-                |> List.concat
+        newCell r c regId =
+            { row = r
+            , col = c
+            , regionId = regId
+            , mark = Empty
+            , hasConflict = False
+            }
+
+        newRow r regionRow =
+            regionRow
+                |> List.indexedMap (newCell r)
+                |> Array.fromList
     in
     { size = size
-    , cells = createdCells
     , catsPerUnit = catsPerUnit
+    , rows =
+        regionMatrix
+            |> List.indexedMap newRow
+            |> Array.fromList
     }
+
+
+cells : Board -> List Cell
+cells board =
+    board.rows
+        |> Array.toList
+        |> List.concatMap Array.toList
 
 
 getCell : Int -> Int -> Board -> Maybe Cell
 getCell r c board =
-    board.cells
-        |> List.filter (\cell -> cell.row == r && cell.col == c)
-        |> List.head
+    Array.get r board.rows
+        |> Maybe.andThen (Array.get c)
 
 
-cycleMark : Int -> Int -> Board -> Board
-cycleMark r c board =
+setMarkAt : Int -> Int -> CellMark -> Board -> Board
+setMarkAt r c newMark board =
     let
-        nextMark current =
-            case current of
-                Empty ->
-                    MarkedX
-
-                MarkedX ->
-                    HasCat
-
-                HasCat ->
-                    Empty
-
-        updatedCells =
-            List.map
-                (\cell ->
-                    if cell.row == r && cell.col == c then
-                        { cell | mark = nextMark cell.mark }
-
-                    else
-                        cell
-                )
-                board.cells
+        markRow row =
+            Array.get c row
+                |> Maybe.map (\cell -> Array.set c { cell | mark = newMark } row)
+                |> Maybe.withDefault row
     in
-    checkConflicts { board | cells = updatedCells }
+    case Array.get r board.rows of
+        Just row ->
+            checkConflicts { board | rows = Array.set r (markRow row) board.rows }
+
+        Nothing ->
+            board
 
 
-setMark : Int -> Int -> CellMark -> Board -> Board
-setMark r c newMark board =
-    let
-        updatedCells =
-            List.map
-                (\cell ->
-                    if cell.row == r && cell.col == c then
-                        { cell | mark = newMark }
+cycleMarkAt : Int -> Int -> Board -> Board
+cycleMarkAt r c board =
+    case getCell r c board of
+        Just cell ->
+            setMarkAt r c (cycleMark cell.mark) board
 
-                    else
-                        cell
-                )
-                board.cells
-    in
-    checkConflicts { board | cells = updatedCells }
+        Nothing ->
+            board
 
 
 countCatsInRow : Int -> Board -> Int
 countCatsInRow r board =
-    board.cells
+    cells board
         |> List.filter (\cell -> cell.row == r && cell.mark == HasCat)
         |> List.length
 
 
 countCatsInCol : Int -> Board -> Int
 countCatsInCol c board =
-    board.cells
+    cells board
         |> List.filter (\cell -> cell.col == c && cell.mark == HasCat)
         |> List.length
 
 
 countCatsInRegion : Int -> Board -> Int
 countCatsInRegion regId board =
-    board.cells
+    cells board
         |> List.filter (\cell -> cell.regionId == regId && cell.mark == HasCat)
         |> List.length
 
@@ -154,7 +183,7 @@ checkConflicts : Board -> Board
 checkConflicts board =
     let
         catCells =
-            List.filter (\cell -> cell.mark == HasCat) board.cells
+            List.filter (\cell -> cell.mark == HasCat) (cells board)
 
         touchesAnotherCat cell =
             if cell.mark /= HasCat then
@@ -178,27 +207,26 @@ checkConflicts board =
                     || (countCatsInCol cell.col board > board.catsPerUnit)
                     || (countCatsInRegion cell.regionId board > board.catsPerUnit)
 
-        updatedCells =
-            List.map
-                (\cell ->
-                    { cell | hasConflict = touchesAnotherCat cell || exceedsUnit cell }
-                )
-                board.cells
+        withConflict cell =
+            { cell | hasConflict = touchesAnotherCat cell || exceedsUnit cell }
     in
-    { board | cells = updatedCells }
+    { board | rows = Array.map (Array.map withConflict) board.rows }
 
 
 isSolved : Board -> Bool
 isSolved board =
     let
+        allCells =
+            cells board
+
         totalCatsExpected =
             board.size * board.catsPerUnit
 
         actualCats =
-            List.filter (\cell -> cell.mark == HasCat) board.cells
+            List.filter (\cell -> cell.mark == HasCat) allCells
 
         noConflicts =
-            List.all (\cell -> not cell.hasConflict) board.cells
+            List.all (\cell -> not cell.hasConflict) allCells
 
         rowsOk =
             List.range 0 (board.size - 1)
@@ -213,21 +241,37 @@ isSolved board =
 
 boardToMatrix : Board -> List (List Int)
 boardToMatrix board =
-    List.range 0 (board.size - 1)
-        |> List.map
-            (\r ->
-                List.range 0 (board.size - 1)
-                    |> List.map
-                        (\c ->
-                            case getCell r c board of
-                                Just cell ->
-                                    if cell.mark == HasCat then
-                                        1
+    let
+        indexes =
+            List.range 0 (board.size - 1)
 
-                                    else
-                                        0
+        valueAt r c =
+            getCell r c board
+                |> Maybe.map (.mark >> markToInt)
+                |> Maybe.withDefault 0
+    in
+    List.map (\r -> List.map (valueAt r) indexes) indexes
 
-                                Nothing ->
-                                    0
-                        )
-            )
+
+regionsToMatrix : Board -> List (List Int)
+regionsToMatrix board =
+    board.rows
+        |> Array.toList
+        |> List.map (Array.toList >> List.map .regionId)
+
+
+setMarksFromMatrix : List (List Int) -> Board -> Board
+setMarksFromMatrix matrix board =
+    let
+        values =
+            matrix
+                |> List.map Array.fromList
+                |> Array.fromList
+
+        withValue cell =
+            Array.get cell.row values
+                |> Maybe.andThen (Array.get cell.col)
+                |> Maybe.map (\value -> { cell | mark = markFromInt value })
+                |> Maybe.withDefault cell
+    in
+    checkConflicts { board | rows = Array.map (Array.map withValue) board.rows }
