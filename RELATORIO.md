@@ -83,44 +83,39 @@ A aplicação é dividida em três camadas com papéis bem definidos. No navegad
 
 | Predicado | Local | O que faz |
 |---|---|---|
-| `solve(+Regions, +CatsPerUnit, -Solution)` | `backend/prolog/meowdoku.pl:54` | Recebe a matriz de regiões e a quantidade de gatos por unidade, devolvendo uma matriz binária com as posições dos gatos que respeitam todas as restrições. |
-| `valid_solution(+Regions, +Board, +CatsPerUnit)` | `backend/prolog/meowdoku.pl:168` | Confere deterministicamente se um tabuleiro preenchido cumpre todas as regras do jogo, sem disparar busca por rotulação. |
-| `enforce_no_touch(+Grid)` | `backend/prolog/meowdoku.pl:126` | Percorre a grade por recursão e impõe a inequação `A + B #=< 1` entre todas as células vizinhas ortogonais e diagonais. |
-| `hint(+Regions, +Board, +CatsPerUnit, -Hint)` | `backend/prolog/meowdoku.pl:204` | Analisa a situação atual da partida e sugere uma jogada fundamentada, retornando a posição, o valor e uma explicação textual. |
-| `has_unique_solution(+Regions, +CatsPerUnit)` | `backend/prolog/meowdoku.pl:275` | Testa se um mapa possui uma única solução possível, buscando no máximo duas respostas com `findall/3`. |
-| `example_puzzle(+Name, -Size, -CatsPerUnit, -Regions)` | `backend/prolog/meowdoku.pl:302` | Contém tabuleiros de teste prontos para os tamanhos 6x6 e 8x8 no modo clássico e 8x8 no modo com dois gatos por região. |
+| `solve(+Regions, +CatsPerUnit, -Solution)` | `backend/prolog/meowdoku.pl:15` | Recebe a matriz de regiões e a quantidade de gatos por unidade, devolvendo uma matriz binária com as posições dos gatos que respeitam todas as restrições. |
+| `valid_solution(+Regions, +Board, +CatsPerUnit)` | `backend/prolog/meowdoku.pl:83` | Confere deterministicamente se um tabuleiro preenchido cumpre todas as regras do jogo, sem disparar busca por rotulação. |
+| `enforce_no_touch(+Grid)` | `backend/prolog/meowdoku.pl:55` | Percorre a grade por recursão e impõe a inequação `A + B #=< 1` entre todas as células vizinhas ortogonais e diagonais. |
+| `hint(+Regions, +Board, +CatsPerUnit, -Hint)` | `backend/prolog/meowdoku.pl:118` | Analisa a situação atual da partida e sugere uma jogada fundamentada, retornando a posição, o valor e uma explicação textual. |
+| `has_unique_solution(+Regions, +CatsPerUnit)` | `backend/prolog/meowdoku.pl:115` | Testa se um mapa possui uma única solução possível, buscando no máximo duas respostas com `findall/3`. |
+| `example_puzzle(+Name, -Size, -CatsPerUnit, -Regions)` | `backend/prolog/meowdoku.pl:170` | Contém tabuleiros de teste prontos para os tamanhos 6x6 e 8x8 no modo clássico e 8x8 no modo com dois gatos por região. |
 
 ### 5.2 Conceitos do paradigma lógico utilizados
 
-- [x] Fatos e regras como base de conhecimento: banco de tabuleiros pré-configurados e regras de dedução textual de dicas em `backend/prolog/meowdoku.pl:280-335`.
-- [x] Unificação e casamento de padrões: desestruturação de listas de coordenadas e termos compostos em `backend/prolog/meowdoku.pl:113-118`.
-- [x] Recursão (inclusive sobre listas): percurso sistemático da grade por meio de `enforce_rows/4` e `enforce_cols/4` em `backend/prolog/meowdoku.pl:132-140`.
-- [x] Backtracking e múltiplas soluções: busca com rotulação `labeling([ff, bisect], AllCells)` para encontrar atribuições válidas em `backend/prolog/meowdoku.pl:79`.
-- [x] `findall/3`, `bagof/3`, `setof/3` ou similares: contagem limitada de soluções para comprovar unicidade em `has_unique_solution/2` em `backend/prolog/meowdoku.pl:275`.
-- [x] Corte (`!`) ou negação (`\+`), e por que foram necessários: uso de corte em `filter_cells_by_region/4` (`backend/prolog/meowdoku.pl:115`) e na seleção da dica prioritária em `hint/4` (`backend/prolog/meowdoku.pl:286`), evitando buscas desnecessárias após encontrar o resultado pretendido.
-- [x] Programação por restrições (CLP(FD) ou outra): definição do domínio binário `0..1`, somatórios de linha, coluna e região com `#=`, e restrições de vizinhança com `#=<` em `backend/prolog/meowdoku.pl:57-76`.
-- [x] Predicados de ordem superior (`maplist`, `foldl`, `include` e correlatos): aplicação uniforme de restrições em matrizes usando `maplist/2` e `maplist/3` em `backend/prolog/meowdoku.pl:59-68`.
+- [x] Fatos e regras como base de conhecimento: banco de tabuleiros pré-configurados e regras de dedução textual de dicas em `backend/prolog/meowdoku.pl:170-199`.
+- [x] Unificação e casamento de padrões: desestruturação de listas de coordenadas e termos compostos em `backend/prolog/meowdoku.pl:48-53`.
+- [x] Recursão (inclusive sobre listas): percurso sistemático da grade por meio de `enforce_rows/4` e `enforce_cols/4` em `backend/prolog/meowdoku.pl:60-68`.
+- [x] Backtracking e múltiplas soluções: busca com rotulação `labeling([ff, bisect], Cells)` para encontrar atribuições válidas em `backend/prolog/meowdoku.pl:28`.
+- [x] `findall/3`, `bagof/3`, `setof/3` ou similares: contagem limitada de soluções para comprovar unicidade em `has_unique_solution/2` em `backend/prolog/meowdoku.pl:115`.
+- [x] Corte (`!`) ou negação (`\+`), e por que foram necessários: uso de corte em `filter_cells_by_region/4` (`backend/prolog/meowdoku.pl:50`) e na seleção da dica prioritária em `hint/4` (`backend/prolog/meowdoku.pl:126`), evitando buscas desnecessárias após encontrar o resultado pretendido.
+- [x] Programação por restrições (CLP(FD) ou outra): definição do domínio binário `0..1`, somatórios de linha, coluna e região com `#=`, e restrições de vizinhança com `#=<` em `backend/prolog/meowdoku.pl:21-27`.
+- [x] Predicados de ordem superior (`maplist`, `foldl`, `include` e correlatos): aplicação uniforme de restrições em matrizes usando `maplist/2` e `maplist/3` em `backend/prolog/meowdoku.pl:19-24`.
 
 ### 5.3 Trecho em destaque
 
 ```prolog
-% Restrições de não-adjacência felina (distância de Chebyshev)
 constrain_neighbors(Grid, R, C, N) :-
     get_cell(Grid, R, C, CellA),
-    % Vizinho a direita (R, C+1)
     C1 is C + 1,
     ( C1 < N -> get_cell(Grid, R, C1, CellR), CellA + CellR #=< 1 ; true ),
-    % Vizinho abaixo (R+1, C)
     R1 is R + 1,
     ( R1 < N -> get_cell(Grid, R1, C, CellD), CellA + CellD #=< 1 ; true ),
-    % Diagonal inferior-direita (R+1, C+1)
     ( (R1 < N, C1 < N) -> get_cell(Grid, R1, C1, CellDR), CellA + CellDR #=< 1 ; true ),
-    % Diagonal inferior-esquerda (R+1, C-1)
     C0 is C - 1,
     ( (R1 < N, C0 >= 0) -> get_cell(Grid, R1, C0, CellDL), CellA + CellDL #=< 1 ; true ).
 ```
 
-Escolhemos esse trecho do arquivo `backend/prolog/meowdoku.pl` (linhas 142 a 154) porque ele resolve a regra de não adjacência de forma declarativa e direta. Em vez de escrever laços imperativos checando se as células vizinhas contêm gatos, representamos cada posição como uma variável binária (0 ou 1) e impomos a inequação `CellA + CellB #=< 1` para cada par de casas adjacentes. Como os valores só podem ser 0 ou 1, a soma nunca permite que dois gatos fiquem lado a lado ou na mesma diagonal.
+Escolhemos esse trecho do arquivo `backend/prolog/meowdoku.pl` (linhas 70 a 79) porque ele resolve a regra de não adjacência de forma declarativa e direta. Em vez de escrever laços imperativos checando se as células vizinhas contêm gatos, representamos cada posição como uma variável binária (0 ou 1) e impomos a inequação `CellA + CellB #=< 1` para cada par de casas adjacentes. Como os valores só podem ser 0 ou 1, a soma nunca permite que dois gatos fiquem lado a lado ou na mesma diagonal.
 
 Durante o desenvolvimento, tentamos inicialmente aplicar essa restrição usando `forall/2`, mas descobrimos que a semântica de negação por falha do `forall` desfazia as restrições de CLP(FD) ao retroceder. Reescrevemos a varredura com recursão determinística sobre os índices de linhas e colunas. Dessa forma, as restrições permanecem ativas na base de restrições do solver durante toda a rotulação (`labeling`), fazendo com que qualquer gato colocado propague imediatamente o valor 0 para todas as oito casas ao redor.
 
@@ -166,13 +161,13 @@ Para as mensagens que envolvem chamadas de rede, como `GotPuzzle` e `GotHint`, u
 ### 6.2 Conceitos do paradigma funcional utilizados
 
 - [x] Arquitetura Elm (Model, update, view): organização da aplicação no ciclo reativo padrão em `frontend/src/Main.elm:38-46`.
-- [x] Custom types e `case` exaustivo: modelagem das marcações com `CellMark` e correspondência exaustiva de padrões em `frontend/src/Meowdoku.elm:25-42`.
-- [x] `Maybe` e `Result` no lugar de null e exceções: busca de casas com `getCell` retornando `Maybe Cell` em `frontend/src/Meowdoku.elm:90` e retorno de requisições com `Result String a` em `frontend/src/Api.elm:160-180`.
-- [x] Funções de ordem superior e aplicação parcial: contagem de gatos por linha, coluna e região usando `List.filter` e `List.length` em `frontend/src/Meowdoku.elm:148-171`.
-- [x] Composição (`|>`, `>>`): encadeamento de transformações na montagem inicial do tabuleiro e na validação em `frontend/src/Meowdoku.elm:66-80`.
+- [x] Custom types e `case` exaustivo: modelagem das marcações com `CellMark` e correspondência exaustiva de padrões em `frontend/src/Meowdoku.elm:18-35`.
+- [x] `Maybe` e `Result` no lugar de null e exceções: busca de casas com `getCell` retornando `Maybe Cell` em `frontend/src/Meowdoku.elm:63` e retorno de requisições com `Result String a` em `frontend/src/Api.elm:160-180`.
+- [x] Funções de ordem superior e aplicação parcial: contagem de gatos por linha, coluna e região usando `List.filter` e `List.length` em `frontend/src/Meowdoku.elm:108-128`.
+- [x] Composição (`|>`, `>>`): encadeamento de transformações na montagem inicial do tabuleiro e na validação em `frontend/src/Meowdoku.elm:45-56`.
 - [x] Decoders e encoders JSON: decodificação das respostas da API usando `Decode.map3` em `frontend/src/Api.elm:143-149`.
 - [x] Comandos e subscriptions (efeitos controlados): envio de requisições HTTP assíncronas encapsuladas em comandos `Cmd Msg` em `frontend/src/Api.elm:215-220`.
-- [x] Imutabilidade e atualização de records: atualização do estado do tabuleiro gerando novas instâncias com `{ board | cells = updatedCells }` em `frontend/src/Meowdoku.elm:124`.
+- [x] Imutabilidade e atualização de records: atualização do estado do tabuleiro gerando novas instâncias com `{ board | cells = updatedCells }` em `frontend/src/Meowdoku.elm:94`.
 
 ### 6.3 Trecho em destaque
 
@@ -213,7 +208,7 @@ checkConflicts board =
     { board | cells = updatedCells }
 ```
 
-O trecho em destaque faz parte do arquivo `frontend/src/Meowdoku.elm` (linhas 178 a 215) e implementa a verificação de conflitos diretamente no frontend. A função `checkConflicts` recebe o tabuleiro atual e devolve uma nova versão com a propriedade `hasConflict` atualizada em cada casa, sem alterar o estado original na memória.
+O trecho em destaque faz parte do arquivo `frontend/src/Meowdoku.elm` (linhas 132 a 167) e implementa a verificação de conflitos diretamente no frontend. A função `checkConflicts` recebe o tabuleiro atual e devolve uma nova versão com a propriedade `hasConflict` atualizada em cada casa, sem alterar o estado original na memória.
 
 Para cada casa que contém um gato, a função verifica se existe outro gato na vizinhança de Chebyshev, calculando se a distância entre linhas e colunas é menor ou igual a 1. Também confere se a linha, a coluna ou a região ultrapassaram a quantidade máxima permitida de gatos. Usando `List.map` e funções anônimas, o código gera a lista atualizada de células e a interface reflete esses conflitos imediatamente na cor vermelha, dando retorno visual ao jogador a cada clique.
 

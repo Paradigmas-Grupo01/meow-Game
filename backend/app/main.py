@@ -74,10 +74,6 @@ def hint(request: BoardRequest) -> HintResponse:
     return HintResponse(row=row, col=col, value=value)
 
 
-# ==============================================================================
-# Rotas do Meowdoku (Cat Queens)
-# ==============================================================================
-
 class MeowdokuExampleResponse(BaseModel):
     name: str
     size: int
@@ -128,7 +124,7 @@ def meowdoku_hint(request: MeowdokuHintRequest) -> MeowdokuHintResponse:
         h = meowdoku_prolog.hint(request.regions, request.board, request.cats_per_unit)
         return MeowdokuHintResponse(**h)
     except meowdoku_prolog.BoardComplete:
-        raise HTTPException(status_code=422, detail="O tabuleiro já possui todos os gatos posicionados!") from None
+        raise HTTPException(status_code=422, detail="O tabuleiro ja possui todos os gatos posicionados.") from None
     except meowdoku_prolog.NoSolution:
-        raise HTTPException(status_code=422, detail="Configuração inconsistente; não foi possível derivar uma dica.") from None
+        raise HTTPException(status_code=422, detail="Nao foi possivel encontrar uma dica para esta configuracao.") from None
 

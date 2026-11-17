@@ -15,13 +15,7 @@ module Meowdoku exposing
     , setMark
     )
 
-{-| Meowdoku: Regras puras e modelagem funcional do jogo de gatos (Star Battle / Queens).
-    Este módulo não faz chamadas HTTP e não renderiza HTML: é 100% puro e testável.
--}
 
-
-{-| Estado de marcação de uma célula na grade.
--}
 type CellMark
     = Empty
     | MarkedX
@@ -35,10 +29,10 @@ markToString mark =
             ""
 
         MarkedX ->
-            "✕"
+            "X"
 
         HasCat ->
-            "🐱"
+            "G"
 
 
 type alias Cell =
@@ -57,8 +51,6 @@ type alias Board =
     }
 
 
-{-| Inicializa um tabuleiro a partir do tamanho, gatos por unidade e matriz de IDs de regiões.
--}
 initBoard : Int -> Int -> List (List Int) -> Board
 initBoard size catsPerUnit regionMatrix =
     let
@@ -85,8 +77,6 @@ initBoard size catsPerUnit regionMatrix =
     }
 
 
-{-| Recupera uma célula com base na linha e coluna.
--}
 getCell : Int -> Int -> Board -> Maybe Cell
 getCell r c board =
     board.cells
@@ -94,8 +84,6 @@ getCell r c board =
         |> List.head
 
 
-{-| Alterna o estado de marcação: Vazio -> X -> Gato -> Vazio.
--}
 cycleMark : Int -> Int -> Board -> Board
 cycleMark r c board =
     let
@@ -124,8 +112,6 @@ cycleMark r c board =
     checkConflicts { board | cells = updatedCells }
 
 
-{-| Define explicitamente a marcação de uma célula.
--}
 setMark : Int -> Int -> CellMark -> Board -> Board
 setMark r c newMark board =
     let
@@ -143,8 +129,6 @@ setMark r c newMark board =
     checkConflicts { board | cells = updatedCells }
 
 
-{-| Conta quantos gatos existem em uma determinada linha.
--}
 countCatsInRow : Int -> Board -> Int
 countCatsInRow r board =
     board.cells
@@ -152,8 +136,6 @@ countCatsInRow r board =
         |> List.length
 
 
-{-| Conta quantos gatos existem em uma determinada coluna.
--}
 countCatsInCol : Int -> Board -> Int
 countCatsInCol c board =
     board.cells
@@ -161,8 +143,6 @@ countCatsInCol c board =
         |> List.length
 
 
-{-| Conta quantos gatos existem em uma determinada região.
--}
 countCatsInRegion : Int -> Board -> Int
 countCatsInRegion regId board =
     board.cells
@@ -170,11 +150,6 @@ countCatsInRegion regId board =
         |> List.length
 
 
-{-| Validação instantânea puramente funcional de conflitos:
-    Marca `hasConflict = True` se:
-    1. A célula tem um gato que toca em outro gato (ortogonal ou diagonal).
-    2. A linha, coluna ou região excedeu o número permitido de gatos.
--}
 checkConflicts : Board -> Board
 checkConflicts board =
     let
@@ -213,10 +188,6 @@ checkConflicts board =
     { board | cells = updatedCells }
 
 
-{-| Verifica se o tabuleiro está completamente resolvido de acordo com as regras:
-    - Quantidade correta de gatos em cada linha, coluna e região.
-    - Nenhum conflito ativo de vizinhança.
--}
 isSolved : Board -> Bool
 isSolved board =
     let
@@ -240,9 +211,6 @@ isSolved board =
     (List.length actualCats == totalCatsExpected) && noConflicts && rowsOk && colsOk
 
 
-{-| Converte o estado do tabuleiro em matriz binária (1 = Gato, 0 = Vazio/X)
-    para envio nas requisições da API.
--}
 boardToMatrix : Board -> List (List Int)
 boardToMatrix board =
     List.range 0 (board.size - 1)
@@ -263,4 +231,3 @@ boardToMatrix board =
                                     0
                         )
             )
-
