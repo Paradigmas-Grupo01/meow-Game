@@ -34,7 +34,7 @@
 
 | Nome completo | Matrícula | Turma (14h/16h) | Usuário GitHub |
 |---------------|-----------|-----------------|----------------|
-| [Nome]        | [000000]  | [14h]           | [@usuario]     |
+| Renata Quadros Kurzawa        | 211063013  | 14h           | [@RenataKurzawa](https://github.com/RenataKurzawa)   |
 | [Nome]        | [000000]  | [16h]           | [@usuario]     |
 | [Nome]        | [000000]  | [14h]           | [@usuario]     |
 | [Nome]        | [000000]  | [16h]           | [@usuario]     |
@@ -247,11 +247,11 @@
 
 | Integrante | Principais contribuições |
 |------------|--------------------------|
-| [Nome]     | [...] |
-| [Nome]     | [...] |
-| [Nome]     | [...] |
-| [Nome]     | [...] |
-| [Nome]     | [...] |
+| Renata Quadros Kurzawa | Implementação das melhorias visuais do frontend em Elm e CSS, incluindo organização do tabuleiro com CSS Grid, diferenciação visual das regiões, responsividade, temas claro e escuro, destaque de conflitos, contadores de gatos e conflitos ativos e mensagem de vitória. |
+| [Nome do integrante 2] | [...] |
+| [Nome do integrante 3] | [...] |
+| [Nome do integrante 4] | [...] |
+| [Nome do integrante 5] | [...] |
 
 <!--
   Além desta tabela, que é do grupo, cada integrante entrega uma avaliação
