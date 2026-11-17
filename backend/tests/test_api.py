@@ -81,3 +81,46 @@ def test_hint_on_full_board_with_errors():
     response = client.post("/api/hint", json={"board": board})
     assert response.status_code == 422
     assert "não tem solução" in response.json()["detail"]
+
+
+# ==============================================================================
+# TESTES DO MEOWDOKU (Rotas /api/meowdoku/*)
+# ==============================================================================
+
+def test_meowdoku_example_route():
+    response = client.get("/api/meowdoku/example?name=classic_6x6")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["size"] == 6
+    assert data["cats_per_unit"] == 1
+    assert len(data["regions"]) == 6
+
+
+def test_meowdoku_solve_route():
+    example_res = client.get("/api/meowdoku/example?name=classic_6x6")
+    regions = example_res.json()["regions"]
+    response = client.post(
+        "/api/meowdoku/solve",
+        json={"regions": regions, "cats_per_unit": 1}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "solution" in data
+    assert len(data["solution"]) == 6
+
+
+def test_meowdoku_hint_route():
+    example_res = client.get("/api/meowdoku/example?name=classic_6x6")
+    regions = example_res.json()["regions"]
+    empty_board = [[0] * 6 for _ in range(6)]
+    response = client.post(
+        "/api/meowdoku/hint",
+        json={"regions": regions, "board": empty_board, "cats_per_unit": 1}
+    )
+    assert response.status_code == 200
+    hint_data = response.json()
+    assert "row" in hint_data
+    assert "col" in hint_data
+    assert "reason" in hint_data
+    assert hint_data["value"] == 1
+
