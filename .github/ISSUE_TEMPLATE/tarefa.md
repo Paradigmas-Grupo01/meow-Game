@@ -20,3 +20,4 @@ Explicação objetiva da necessidade da tarefa no contexto da disciplina ou do j
 
 ### Critério de Conclusão (DoD)
 Condição necessária para considerar a tarefa concluída e pronta para merge.
+

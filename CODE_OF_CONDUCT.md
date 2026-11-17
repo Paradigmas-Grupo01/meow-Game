@@ -19,3 +19,4 @@ Conforme estabelecido nas normas da UnB e no plano de ensino da disciplina:
 - **Plágio:** É expressamente proibido copiar código de outros grupos, de semestres anteriores ou de repositórios públicos sem a devida citação e declaração na Seção 11 do relatório. A constatação de plágio anula a avaliação de todos os envolvidos, sem direito a substituição.
 - **Uso de Ferramentas de Inteligência Artificial:** O uso de IA é permitido para apoio, explicação ou geração de trechos pontuais, desde que seja **obrigatoriamente declarado** com precisão na Seção 11 do `RELATORIO.md`. Ocultar o uso de IA constitui falta grave.
 - **Autonomia Individual:** Cada membro deve dominar o código atribuído a si, estando apto a explicá-lo linha a linha durante a arguição oral individual com o professor.
+

@@ -26,3 +26,4 @@ Cole aqui a mensagem do compilador ou traceback
 - Sistema Operacional: [Linux / Windows / macOS]
 - Versão do SWI-Prolog:
 - Versão do Node / Elm:
+

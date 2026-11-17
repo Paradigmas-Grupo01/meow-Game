@@ -91,3 +91,4 @@ Antes de solicitar a revisão de outro membro da equipe, execute os seguintes pa
 - Pelo menos um outro integrante deve revisar e aprovar o PR antes do merge.
 - O revisor deve verificar se o código roda localmente e se atende aos critérios de aceitação da issue relacionada.
 - Use `Squash and merge` ou `Rebase and merge` para manter o histórico da branch `main` linear e organizado.
+
