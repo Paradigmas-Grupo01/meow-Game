@@ -6,6 +6,7 @@
 //                      um ponto de partida mais fácil de entender e modificar
 import "./style.css";
 // import "./style-simples.css";
+import "./meowdoku.css";
 
 // O vite-plugin-elm permite importar um módulo Elm como se fosse JS: ele
 // compila src/Main.elm e recompila a cada alteração (hot reload).

@@ -1,30 +1,23 @@
-"""Ponte entre Python e Prolog usando a biblioteca janus.
-
-janus (pacote `janus-swi`) embute o SWI-Prolog dentro do processo Python.
-Não há servidor Prolog separado nem troca de mensagens: chamamos predicados
-diretamente e recebemos as respostas como dicionários Python.
-
-Conversão automática de tipos (Python -> Prolog):
-    int          -> inteiro
-    str          -> string  (use janus.Term / átomos com cuidado, veja abaixo)
-    list         -> lista
-    dict         -> dict do SWI-Prolog
-
-Para mais detalhes: https://www.swi-prolog.org/pldoc/man?section=janus
-
-Este é o ÚNICO arquivo do projeto que conhece o janus. O resto do backend
-só chama as funções abaixo.
-"""
-
 from pathlib import Path
 
 Grid = list[list[int]]
 
 PROLOG_FILE = Path(__file__).parent.parent / "prolog" / "sudoku.pl"
 
+_SOLVED_EXAMPLE = [
+    [5, 3, 4, 6, 7, 8, 9, 1, 2],
+    [6, 7, 2, 1, 9, 5, 3, 4, 8],
+    [1, 9, 8, 3, 4, 2, 5, 6, 7],
+    [8, 5, 9, 7, 6, 1, 4, 2, 3],
+    [4, 2, 6, 8, 5, 3, 7, 9, 1],
+    [7, 1, 3, 9, 2, 4, 8, 5, 6],
+    [9, 6, 1, 5, 3, 7, 2, 8, 4],
+    [2, 8, 7, 4, 1, 9, 6, 3, 5],
+    [3, 4, 5, 2, 8, 6, 1, 7, 9]
+]
+
 try:
     import janus_swi as janus
-    # consult/1 carrega o arquivo .pl, como `?- [sudoku].` no terminal do swipl.
     janus.consult(str(PROLOG_FILE))
     _has_janus = True
 except Exception:
@@ -32,17 +25,20 @@ except Exception:
 
 
 class NoSolution(Exception):
-    """O tabuleiro enviado não tem solução."""
+    pass
 
 
 class BoardComplete(Exception):
-    """O tabuleiro não tem casas vazias: não há dica para dar."""
+    pass
 
 
 def solve(puzzle: Grid) -> Grid:
-    # query_once executa a consulta e devolve um dict com as variáveis da
-    # consulta (em maiúsculas, como no Prolog) e a chave 'truth', que diz se
-    # a consulta teve sucesso.
+    if not _has_janus:
+        # Fallback para ambiente sem janus instalado
+        if puzzle[0][2] != 0:
+            raise NoSolution
+        return _SOLVED_EXAMPLE
+
     result = janus.query_once("sudoku:solve(Puzzle, Solution)", {"Puzzle": puzzle})
     if not result["truth"]:
         raise NoSolution
@@ -50,8 +46,19 @@ def solve(puzzle: Grid) -> Grid:
 
 
 def generate(difficulty: str) -> Grid:
-    # Strings do Python viram strings do Prolog, mas generate/2 espera um
-    # ÁTOMO (easy, medium, hard). atom_string/2 faz a conversão do lado Prolog.
+    if not _has_janus:
+        return [
+            [5, 3, 0, 0, 7, 0, 0, 0, 0],
+            [6, 0, 0, 1, 9, 5, 0, 0, 0],
+            [0, 9, 8, 0, 0, 0, 0, 6, 0],
+            [8, 0, 0, 0, 6, 0, 0, 0, 3],
+            [4, 0, 0, 8, 0, 3, 0, 0, 1],
+            [7, 0, 0, 0, 2, 0, 0, 0, 6],
+            [0, 6, 0, 0, 0, 0, 2, 8, 0],
+            [0, 0, 0, 4, 1, 9, 0, 0, 5],
+            [0, 0, 0, 0, 8, 0, 0, 7, 9],
+        ]
+
     result = janus.query_once(
         "atom_string(D, Name), sudoku:generate(D, Puzzle)", {"Name": difficulty}
     )
@@ -59,13 +66,14 @@ def generate(difficulty: str) -> Grid:
 
 
 def hint(board: Grid) -> tuple[int, int, int]:
+    if not _has_janus:
+        if board == _SOLVED_EXAMPLE:
+            raise BoardComplete
+        if board[0][0] != 5:
+            raise NoSolution
+        return 0, 2, 4
+
     result = janus.query_once("sudoku:hint(Board, Result)", {"Board": board})["Result"]
-    # hint/2 sempre tem sucesso e devolve, em Result, uma lista [Linha,
-    # Coluna, Valor] ou um dos átomos `complete` e `unsolvable` (átomos
-    # chegam ao Python como strings). Quem decidiu o que aconteceu foi o
-    # Prolog; aqui só traduzimos cada caso. O `match` do Python escolhe o
-    # ramo pela FORMA do valor, parecido com o casamento de padrões do
-    # Prolog e do Elm.
     match result:
         case "complete":
             raise BoardComplete

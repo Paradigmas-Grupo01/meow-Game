@@ -192,10 +192,6 @@ errorDetail status body =
             "Erro no servidor (código " ++ String.fromInt status ++ ")."
 
 
--- ==============================================================================
--- MEOWDOKU (Cat Queens) API
--- ==============================================================================
-
 type alias MeowdokuPuzzle =
     { name : String
     , size : Int

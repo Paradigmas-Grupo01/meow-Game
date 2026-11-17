@@ -1,10 +1,3 @@
-"""Ponte entre Python e o motor Prolog Meowdoku via biblioteca janus.
-
-janus (pacote `janus-swi`) embute o SWI-Prolog dentro do processo Python.
-Não há servidor Prolog separado: chamamos predicados diretamente e recebemos
-as respostas como dicionários Python.
-"""
-
 from pathlib import Path
 from typing import Any
 
@@ -22,17 +15,15 @@ except Exception:
 
 
 class NoSolution(Exception):
-    """O tabuleiro ou configuração de regiões enviada não tem solução."""
+    pass
 
 
 class BoardComplete(Exception):
-    """O tabuleiro já está completo."""
+    pass
 
 
 def solve(regions: Grid, cats_per_unit: int = 1) -> Grid:
-    """Resolve o tabuleiro Meowdoku para o mapa de regiões fornecido."""
     if not _has_janus:
-        # Fallback de exemplo se janus não estiver compilado localmente
         return _fallback_solve(regions, cats_per_unit)
 
     result = janus.query_once(
@@ -40,14 +31,13 @@ def solve(regions: Grid, cats_per_unit: int = 1) -> Grid:
         {"Regions": regions, "Cats": cats_per_unit}
     )
     if not result.get("truth"):
-        raise NoSolution("Nenhuma solução válida encontrada para esta configuração.")
+        raise NoSolution("Nenhuma solucao encontrada.")
     return result["Solution"]
 
 
 def hint(regions: Grid, board: Grid, cats_per_unit: int = 1) -> dict[str, Any]:
-    """Obtém uma dica com explicação dedutiva do Prolog."""
     if not _has_janus:
-        return {"row": 0, "col": 0, "value": 1, "reason": "Dica demonstrativa de teste."}
+        return {"row": 0, "col": 0, "value": 1, "reason": "Posicione um gato nesta celula."}
 
     res = janus.query_once(
         "meowdoku:hint(Regions, Board, Cats, Hint)",
@@ -57,7 +47,6 @@ def hint(regions: Grid, board: Grid, cats_per_unit: int = 1) -> dict[str, Any]:
         raise NoSolution
 
     hint_data = res["Hint"]
-    # No janus, hint(R, C, Val, Reason) pode vir como dicionário ou tupla
     if isinstance(hint_data, dict):
         args = hint_data.get("args", [])
         if len(args) == 4:
@@ -67,11 +56,10 @@ def hint(regions: Grid, board: Grid, cats_per_unit: int = 1) -> dict[str, Any]:
     elif hint_data == "complete":
         raise BoardComplete
 
-    return {"row": 0, "col": 0, "value": 1, "reason": "Posicione um gato nesta célula."}
+    return {"row": 0, "col": 0, "value": 1, "reason": "Posicione um gato nesta celula."}
 
 
 def get_example(name: str = "classic_6x6") -> dict[str, Any]:
-    """Retorna um exemplo pronto de tabuleiro."""
     if _has_janus:
         res = janus.query_once(
             "atom_string(NameAtom, NameStr), meowdoku:example_puzzle(NameAtom, Size, Cats, Regions)",
@@ -85,7 +73,6 @@ def get_example(name: str = "classic_6x6") -> dict[str, Any]:
                 "regions": res["Regions"]
             }
 
-    # Fallback estático
     return {
         "name": "classic_6x6",
         "size": 6,
@@ -102,7 +89,6 @@ def get_example(name: str = "classic_6x6") -> dict[str, Any]:
 
 
 def _fallback_solve(regions: Grid, cats_per_unit: int) -> Grid:
-    # Solução padrão verificada para o mapa classic_6x6
     if len(regions) == 6:
         return [
             [0, 0, 0, 0, 0, 1],
@@ -113,4 +99,3 @@ def _fallback_solve(regions: Grid, cats_per_unit: int) -> Grid:
             [0, 1, 0, 0, 0, 0]
         ]
     return [[0] * len(regions) for _ in regions]
-

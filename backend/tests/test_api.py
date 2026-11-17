@@ -83,10 +83,6 @@ def test_hint_on_full_board_with_errors():
     assert "não tem solução" in response.json()["detail"]
 
 
-# ==============================================================================
-# TESTES DO MEOWDOKU (Rotas /api/meowdoku/*)
-# ==============================================================================
-
 def test_meowdoku_example_route():
     response = client.get("/api/meowdoku/example?name=classic_6x6")
     assert response.status_code == 200
