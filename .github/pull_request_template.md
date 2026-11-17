@@ -26,3 +26,4 @@ Closes #
 - [ ] A formatação do Elm foi verificada com `elm-format`.
 - [ ] O código não gera warnings no compilador.
 - [ ] As alterações respeitam a divisão de responsabilidades acordada na Seção 10 do relatório.
+

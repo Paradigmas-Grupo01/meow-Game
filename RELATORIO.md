@@ -9,7 +9,7 @@
 | Cayo Alencar | 221000003 | 16h | @Cayoalencar |
 | Gabriel Marques de Souza | 221000004 | 16h | @GabrielMS00 |
 | Paola Nascimento | 221000005 | 16h | @paolaalim |
-| Renata Kurzawa | 221000006 | 16h | @RenataKurzawa |
+| Renata Quadros Kurzawa | 211063013 | 16h | @RenataKurzawa |
 | Tales R. G. | 221000007 | 16h | @TalesRG |
 
 - **Nome do projeto:** Meowdoku
@@ -249,7 +249,7 @@ Caso o grupo tivesse mais semanas para trabalhar no projeto, a prioridade seria 
 | Cayo Alencar | Estruturou a integração entre FastAPI e SWI-Prolog usando Janus, configurou os modelos Pydantic, desenvolveu as rotas REST e escreveu os testes com pytest nas Issues #3 e #10. |
 | Tales R. G. | Desenvolveu o módulo de domínio em Elm (`Meowdoku.elm`), definindo os tipos de dados imutáveis, a máquina de estados das células e o algoritmo funcional de conflitos nas Issues #4 e #11. |
 | Gabriel Marques de Souza | Escreveu os decodificadores e codificadores JSON no Elm, organizou o ciclo update na arquitetura TEA e cuidou da comunicação HTTP nas Issues #5 e #12. |
-| Renata Kurzawa | Projetou a interface visual em CSS Grid com paleta diferenciada para os territórios, criou o retorno visual de conflitos em vermelho e montou o modal de vitória nas Issues #6 e #13. |
+| Renata Quadros Kurzawa | Projetou a interface visual em CSS Grid com paleta diferenciada para os territórios, criou o retorno visual de conflitos em vermelho e montou o modal de vitória nas Issues #6 e #13. |
 | Paola Nascimento | Atuou na garantia de qualidade, configurando e rodando o script `validar_entrega.py`, redigindo e revisando as seções do `RELATORIO.md` e organizando as atas nas Issues #7 e #14. |
 
 ## 11. Fontes, código de terceiros e uso de IA
@@ -275,7 +275,7 @@ Caso o grupo tivesse mais semanas para trabalhar no projeto, a prioridade seria 
 | Parte | Duração | Quem apresenta |
 |---|:---:|---|
 | Introdução e Contextualização do Meowdoku | 2 min | Paola Nascimento |
-| Demonstração Prática e Interface Web | 4 min | Renata Kurzawa e Tales R. G. |
+| Demonstração Prática e Interface Web | 4 min | Renata Quadros Kurzawa e Tales R. G. |
 | Paradigma Lógico: CLP(FD), K=2 e Dicas | 4 min | Gabriel Santos Monteiro e Ana Luíza Fernandes |
 | Paradigma Funcional e Integração HTTP | 3 min | Gabriel Marques de Souza e Cayo Alencar |
 | Limitações, Conclusão e Arguição | 2 min | Gabriel Santos Monteiro |
