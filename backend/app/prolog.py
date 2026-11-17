@@ -18,14 +18,17 @@ só chama as funções abaixo.
 
 from pathlib import Path
 
-import janus_swi as janus
-
 Grid = list[list[int]]
 
 PROLOG_FILE = Path(__file__).parent.parent / "prolog" / "sudoku.pl"
 
-# consult/1 carrega o arquivo .pl, como `?- [sudoku].` no terminal do swipl.
-janus.consult(str(PROLOG_FILE))
+try:
+    import janus_swi as janus
+    # consult/1 carrega o arquivo .pl, como `?- [sudoku].` no terminal do swipl.
+    janus.consult(str(PROLOG_FILE))
+    _has_janus = True
+except Exception:
+    _has_janus = False
 
 
 class NoSolution(Exception):
