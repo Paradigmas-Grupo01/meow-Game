@@ -1,0 +1,560 @@
+/* ==========================================================================
+   meowdoku.css: folha de estilos específica do Meowdoku (Cat Queens).
+
+   COMO ESTE ARQUIVO SE RELACIONA COM style.css
+   --------------------------------------------
+   Este arquivo COMPLEMENTA (não substitui) o style.css. Ele define:
+
+     - As variáveis das 10 cores territoriais (--region-0 a --region-9)
+     - As classes de célula do Meowdoku (cell--cat, cell--blocked,
+       cell--conflict, cell--hint)
+     - O bloco de tabuleiro Meowdoku (.meow-board, .meow-cell)
+     - O contador de gatos restantes (.cat-counter)
+     - O modal de vitória (.victory-modal)
+     - Adaptações do tema escuro
+
+   Para ativar, adicione no início de src/main.js:
+       import "./meowdoku.css";
+
+   PALETA TERRITORIAL
+   ------------------
+   As 10 cores foram escolhidas para:
+     1. Serem legíveis sobre o fundo claro do tabuleiro.
+     2. Ter contraste suficiente entre territórios adjacentes.
+     3. Ficarem como pastéis saturados no claro e suaves no escuro.
+   Cada cor existe em duas variantes: o fundo da região (--region-N) e
+   a borda que separa territórios (--region-N-border). Usar oklch permite
+   gerar a borda simplesmente reduzindo a luminosidade em ~15%.
+
+   CONVENÇÃO BEM (mesma do style.css)
+   ------------------------------------
+     .meow-board          bloco principal do tabuleiro Meowdoku
+     .meow-cell           uma casa dentro do tabuleiro
+     .meow-cell--cat      modificador: casa com gato posicionado
+     .meow-cell--blocked  modificador: casa marcada como proibida (X)
+     .meow-cell--conflict modificador: casa em conflito (sinalizado ao jogador)
+     .meow-cell--hint     modificador: dica ativa nesta casa
+     .region-N            cor territorial aplicada à célula
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. VARIÁVEIS DE PALETA TERRITORIAL
+   ========================================================================== */
+
+:root {
+  /* ----- Dez cores pastéis com alto contraste entre si -----
+     Formato: oklch(luminosidade croma matiz)
+       luminosidade >= 88% garante legibilidade do ícone felino por cima.
+       croma 0.08-0.14 garante saturação visível sem cansar os olhos.
+     A borda de cada região usa a mesma matiz com ~15% a menos de luminosidade. */
+
+  /* 0 — Rosa suave */
+  --region-0:        oklch(90% 0.10 0);
+  --region-0-border: oklch(72% 0.14 0);
+
+  /* 1 — Pêssego */
+  --region-1:        oklch(91% 0.09 35);
+  --region-1-border: oklch(72% 0.13 35);
+
+  /* 2 — Amarelo claro */
+  --region-2:        oklch(93% 0.08 85);
+  --region-2-border: oklch(74% 0.13 85);
+
+  /* 3 — Verde menta */
+  --region-3:        oklch(91% 0.09 155);
+  --region-3-border: oklch(70% 0.13 155);
+
+  /* 4 — Ciano suave */
+  --region-4:        oklch(90% 0.08 205);
+  --region-4-border: oklch(68% 0.11 205);
+
+  /* 5 — Azul lavanda */
+  --region-5:        oklch(89% 0.08 250);
+  --region-5-border: oklch(68% 0.13 250);
+
+  /* 6 — Lilás */
+  --region-6:        oklch(89% 0.09 295);
+  --region-6-border: oklch(68% 0.14 295);
+
+  /* 7 — Roxo rosado */
+  --region-7:        oklch(89% 0.09 330);
+  --region-7-border: oklch(68% 0.14 330);
+
+  /* 8 — Verde salva */
+  --region-8:        oklch(89% 0.07 125);
+  --region-8-border: oklch(68% 0.11 125);
+
+  /* 9 — Âmbar pastel */
+  --region-9:        oklch(91% 0.10 60);
+  --region-9-border: oklch(72% 0.14 60);
+
+  /* ----- Estados internos das células Meowdoku ----- */
+  --meow-cell-size: calc(100cqi / var(--meow-cols, 6));
+  --meow-conflict-bg:  oklch(96% 0.06 25);        /* vermelho suave */
+  --meow-conflict-fg:  oklch(44% 0.22 25);
+  --meow-conflict-border: oklch(60% 0.22 25);
+  --meow-hint-glow:    oklch(90% 0.14 75);        /* âmbar, sutil */
+  --meow-blocked-opacity: 0.42;                   /* "X" translúcido */
+
+  /* ----- Contadores e modal ----- */
+  --victory-overlay: color-mix(in oklch, oklch(0% 0 0) 55%, transparent);
+}
+
+/* Adaptações no tema escuro: cores mais escuras para não queimar os olhos. */
+:root:has(.theme-controller[value="dark"]:checked),
+[data-theme="dark"] {
+  --region-0:        oklch(32% 0.10 0);
+  --region-0-border: oklch(55% 0.14 0);
+  --region-1:        oklch(32% 0.09 35);
+  --region-1-border: oklch(55% 0.13 35);
+  --region-2:        oklch(34% 0.08 85);
+  --region-2-border: oklch(58% 0.12 85);
+  --region-3:        oklch(32% 0.09 155);
+  --region-3-border: oklch(55% 0.13 155);
+  --region-4:        oklch(32% 0.08 205);
+  --region-4-border: oklch(52% 0.11 205);
+  --region-5:        oklch(30% 0.08 250);
+  --region-5-border: oklch(52% 0.13 250);
+  --region-6:        oklch(30% 0.09 295);
+  --region-6-border: oklch(52% 0.14 295);
+  --region-7:        oklch(30% 0.09 330);
+  --region-7-border: oklch(52% 0.14 330);
+  --region-8:        oklch(30% 0.07 125);
+  --region-8-border: oklch(50% 0.10 125);
+  --region-9:        oklch(32% 0.10 60);
+  --region-9-border: oklch(55% 0.14 60);
+
+  --meow-conflict-bg:   oklch(24% 0.08 25);
+  --meow-conflict-fg:   oklch(78% 0.22 25);
+  --meow-conflict-border: oklch(60% 0.22 25);
+  --meow-hint-glow:     oklch(55% 0.14 75);
+  --victory-overlay:    color-mix(in oklch, oklch(0% 0 0) 72%, transparent);
+}
+
+
+/* ==========================================================================
+   2. CORES TERRITORIAIS — classes .region-N aplicadas às células
+   ========================================================================== */
+
+@layer components {
+
+  /* Aplicação das cores: o Elm coloca `class "meow-cell region-2"` na célula,
+     e estas regras definem o fundo e a borda de delimitação de território.
+     A borda direita/inferior é a borda do mesmo território: a borda entre
+     territórios diferentes é renderizada via outline pelo Elm ou pelo
+     meow-board com box-shadow. */
+
+  .region-0  { background-color: var(--region-0);  }
+  .region-1  { background-color: var(--region-1);  }
+  .region-2  { background-color: var(--region-2);  }
+  .region-3  { background-color: var(--region-3);  }
+  .region-4  { background-color: var(--region-4);  }
+  .region-5  { background-color: var(--region-5);  }
+  .region-6  { background-color: var(--region-6);  }
+  .region-7  { background-color: var(--region-7);  }
+  .region-8  { background-color: var(--region-8);  }
+  .region-9  { background-color: var(--region-9);  }
+
+  /* Bordas de demarcação territorial (entre regiões distintas).
+     O Elm adiciona as classes border-region-N* quando o vizinho
+     da célula pertence a outro território. */
+  .region-0.border-region-right  { border-right-color:  var(--region-0-border); }
+  .region-0.border-region-bottom { border-bottom-color: var(--region-0-border); }
+  .region-1.border-region-right  { border-right-color:  var(--region-1-border); }
+  .region-1.border-region-bottom { border-bottom-color: var(--region-1-border); }
+  .region-2.border-region-right  { border-right-color:  var(--region-2-border); }
+  .region-2.border-region-bottom { border-bottom-color: var(--region-2-border); }
+  .region-3.border-region-right  { border-right-color:  var(--region-3-border); }
+  .region-3.border-region-bottom { border-bottom-color: var(--region-3-border); }
+  .region-4.border-region-right  { border-right-color:  var(--region-4-border); }
+  .region-4.border-region-bottom { border-bottom-color: var(--region-4-border); }
+  .region-5.border-region-right  { border-right-color:  var(--region-5-border); }
+  .region-5.border-region-bottom { border-bottom-color: var(--region-5-border); }
+  .region-6.border-region-right  { border-right-color:  var(--region-6-border); }
+  .region-6.border-region-bottom { border-bottom-color: var(--region-6-border); }
+  .region-7.border-region-right  { border-right-color:  var(--region-7-border); }
+  .region-7.border-region-bottom { border-bottom-color: var(--region-7-border); }
+  .region-8.border-region-right  { border-right-color:  var(--region-8-border); }
+  .region-8.border-region-bottom { border-bottom-color: var(--region-8-border); }
+  .region-9.border-region-right  { border-right-color:  var(--region-9-border); }
+  .region-9.border-region-bottom { border-bottom-color: var(--region-9-border); }
+
+
+  /* ==========================================================================
+     3. TABULEIRO MEOWDOKU
+     ========================================================================== */
+
+  /* O tabuleiro Meowdoku usa uma grade dinâmica: o número de colunas é
+     controlado pela variável --meow-cols, que o Elm define via atributo
+     style="--meow-cols: 6" (ou 8, 10...). Assim não precisamos reescrever
+     este arquivo para cada tamanho de grade.
+
+     container-type: inline-size ativa as container queries: dentro do
+     .meow-board, `cqi` = 1% da largura do tabuleiro. Isso faz o ícone
+     felino escalar junto com o tamanho da grade. */
+
+  .meow-board {
+    display: grid;
+    grid-template-columns: repeat(var(--meow-cols, 6), 1fr);
+    grid-template-rows:    repeat(var(--meow-cols, 6), 1fr);
+    width: var(--board-size, min(100vw - 2rem, 32rem, 70vh));
+    aspect-ratio: 1;
+    container-type: inline-size;
+    border: 3px solid var(--color-base-content, #2a2a2a);
+    border-radius: var(--board-radius, 1.25rem);
+    overflow: hidden;
+    background: var(--color-base-100, #fff);
+    box-shadow: var(--board-shadow, 0 4px 24px -4px rgba(0,0,0,.18));
+    transition: box-shadow 300ms;
+
+    /* Halo vermelho quando qualquer célula tem conflito. */
+    &:has(.meow-cell--conflict) {
+      box-shadow:
+        var(--board-shadow, 0 4px 24px -4px rgba(0,0,0,.18)),
+        0 0 0 6px color-mix(in oklch, var(--meow-conflict-fg) 20%, transparent);
+    }
+
+    /* Borda de gradiente girando após vitória. */
+    &.meow-board--solved::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      padding: 4px;
+      border-radius: inherit;
+      pointer-events: none;
+      background: conic-gradient(
+        from var(--angle, 0deg),
+        var(--region-0-border),
+        var(--region-2-border),
+        var(--region-4-border),
+        var(--region-6-border),
+        var(--region-8-border),
+        var(--region-0-border)
+      );
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude;
+      animation: spin-angle calc(3s * var(--speed, 1)) linear infinite;
+    }
+  }
+
+
+  /* ==========================================================================
+     4. CÉLULAS DO MEOWDOKU
+     ========================================================================== */
+
+  .meow-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Borda interna de território. A espessura é deliberadamente fina:
+       a demarcação forte fica nas bordas de região diferentes (--region-N-border). */
+    border-right:  1px solid color-mix(in oklch, var(--color-base-content, #333) 15%, transparent);
+    border-bottom: 1px solid color-mix(in oklch, var(--color-base-content, #333) 15%, transparent);
+    cursor: pointer;
+    user-select: none;
+    transition:
+      background-color 120ms,
+      box-shadow 120ms,
+      filter 150ms;
+    font-size: calc(var(--meow-cell-size) * 0.55);
+    line-height: 1;
+
+    &:hover {
+      filter: brightness(0.93);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-primary, #5555ff);
+      outline-offset: -3px;
+      z-index: 1;
+    }
+  }
+
+
+  /* ---------- 4a. Célula com gato posicionado ----------
+     O ícone felino é desenhado em SVG inline embutido como pseudo-elemento
+     para evitar emojis (renderização inconsistente entre sistemas).
+     O SVG usa currentColor, então herda a cor do texto da célula.
+
+     Alternativa tipográfica: se o grupo preferir um emoji ou símbolo,
+     substitua o `content: url(...)` por `content: "🐱"` e ajuste font-size.
+  */
+
+  .meow-cell--cat {
+    /* ícone SVG de gato: silhueta simplificada (cabeça + orelhas).
+       Codificado como data URI para dispensar assets externos. */
+    &::after {
+      content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6 L4 2 L7 5'/%3E%3Cpath d='M20 6 L20 2 L17 5'/%3E%3Cellipse cx='12' cy='11' rx='8' ry='7'/%3E%3Ccircle cx='9' cy='10' r='1' fill='%23333'/%3E%3Ccircle cx='15' cy='10' r='1' fill='%23333'/%3E%3Cpath d='M9 14 Q12 16 15 14'/%3E%3C/svg%3E");
+      display: block;
+      width:  calc(var(--meow-cell-size) * 0.6);
+      height: calc(var(--meow-cell-size) * 0.6);
+      animation: cat-pop calc(240ms * var(--speed, 1)) cubic-bezier(.26,1.5,.54,1);
+    }
+
+    /* Fundo ligeiramente mais escuro que o território para realçar o gato. */
+    filter: brightness(0.90);
+  }
+
+  /* Versão escura: inverte a cor do traço do SVG para ficar visível. */
+  :root:has(.theme-controller[value="dark"]:checked) .meow-cell--cat::after,
+  [data-theme="dark"] .meow-cell--cat::after {
+    content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23eee' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6 L4 2 L7 5'/%3E%3Cpath d='M20 6 L20 2 L17 5'/%3E%3Cellipse cx='12' cy='11' rx='8' ry='7'/%3E%3Ccircle cx='9' cy='10' r='1' fill='%23eee'/%3E%3Ccircle cx='15' cy='10' r='1' fill='%23eee'/%3E%3Cpath d='M9 14 Q12 16 15 14'/%3E%3C/svg%3E");
+  }
+
+
+  /* ---------- 4b. Célula bloqueada / descartada (X translúcido) ---------- */
+
+  .meow-cell--blocked {
+    &::after {
+      content: "✕";
+      font-size: calc(var(--meow-cell-size) * 0.45);
+      font-weight: 600;
+      color: var(--color-base-content, #333);
+      opacity: var(--meow-blocked-opacity);
+      pointer-events: none;
+      /* Sem animação de entrada: o X deve aparecer rapidamente como gesto
+         de exclusão, não como colocação. */
+    }
+  }
+
+
+  /* ---------- 4c. Célula em conflito ----------
+     Fundo vermelho suave + borda colorida + listras diagonais sutis.
+     A classe convive com .region-N; o background-image sobrepõe a cor
+     territorial sem apagá-la totalmente. */
+
+  .meow-cell--conflict {
+    background-color: var(--meow-conflict-bg) !important;
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklch, var(--meow-conflict-fg) 12%, transparent) 0 3px,
+      transparent 3px 8px
+    );
+    box-shadow: inset 0 0 0 2px var(--meow-conflict-border);
+    color: var(--meow-conflict-fg);
+
+    /* Pulso suave que chama atenção sem ser intrusivo. */
+    animation: conflict-pulse calc(600ms * var(--speed, 1)) ease-in-out 2;
+  }
+
+
+  /* ---------- 4d. Dica ativa ----------
+     Brilho dourado pulsante que indica onde o próximo gato deve ir. */
+
+  .meow-cell--hint {
+    box-shadow:
+      inset 0 0 0 2px color-mix(in oklch, var(--meow-hint-glow) 90%, transparent),
+      0 0 12px 2px   color-mix(in oklch, var(--meow-hint-glow) 60%, transparent);
+    animation: hint-pulse calc(900ms * var(--speed, 1)) ease-in-out infinite alternate;
+    z-index: 1;
+  }
+
+
+  /* ==========================================================================
+     5. CONTADOR DE GATOS RESTANTES
+     ========================================================================== */
+
+  /* Exibe quantos gatos ainda faltam colocar no tabuleiro.
+     Fica no painel lateral (.side-panel do style.css) ou acima do tabuleiro. */
+
+  .cat-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .cat-counter__icon {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    /* Mesmo SVG do ícone de gato, tamanho fixo. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6 L4 2 L7 5'/%3E%3Cpath d='M20 6 L20 2 L17 5'/%3E%3Cellipse cx='12' cy='11' rx='8' ry='7'/%3E%3Ccircle cx='9' cy='10' r='1' fill='%23555'/%3E%3Ccircle cx='15' cy='10' r='1' fill='%23555'/%3E%3Cpath d='M9 14 Q12 16 15 14'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+
+  .cat-counter__label {
+    color: var(--color-base-content, #333);
+    opacity: 0.75;
+  }
+
+  /* Destaque quando chega em zero (vitória iminente). */
+  .cat-counter__remaining {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--color-primary, #4444dd);
+    min-width: 1.6rem;
+    text-align: center;
+    transition: color 300ms, transform 200ms;
+
+    &.cat-counter__remaining--zero {
+      color: var(--color-success, #22aa66);
+      transform: scale(1.2);
+    }
+  }
+
+
+  /* ==========================================================================
+     6. MODAL DE VITÓRIA
+     ========================================================================== */
+
+  /* Overlay escuro sobre a tela inteira. Exibido com
+     `class "victory-modal victory-modal--open"`. */
+
+  .victory-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--victory-overlay);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity calc(300ms * var(--speed, 1));
+
+    &.victory-modal--open {
+      opacity: 1;
+      pointer-events: all;
+    }
+  }
+
+  /* Caixa central do modal. */
+  .victory-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 2.5rem 2rem;
+    border-radius: var(--board-radius, 1.25rem);
+    background: var(--glass-bg, rgba(255,255,255,0.88));
+    backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid var(--glass-border, rgba(0,0,0,0.08));
+    box-shadow:
+      0 8px 32px -8px rgba(0,0,0,0.25),
+      0 0 0 1px rgba(255,255,255,0.4);
+    text-align: center;
+    max-width: min(28rem, 90vw);
+    animation: victory-enter calc(500ms * var(--speed, 1)) cubic-bezier(.26,1.5,.54,1);
+  }
+
+  /* Ícone de gato celebrando. */
+  .victory-cat {
+    width: 5rem;
+    height: 5rem;
+    animation: victory-bounce calc(800ms * var(--speed, 1)) ease-in-out infinite alternate;
+  }
+
+  .victory-title {
+    font-size: 2rem;
+    font-weight: 800;
+    /* Gradiente em texto, como o app-title do style.css. */
+    background: linear-gradient(120deg, var(--region-0-border), var(--region-3-border) 50%, var(--region-5-border));
+    background-clip: text;
+    color: transparent;
+    line-height: 1.1;
+  }
+
+  .victory-subtitle {
+    font-size: 0.95rem;
+    color: var(--color-base-content, #333);
+    opacity: 0.72;
+    max-width: 22rem;
+    line-height: 1.5;
+  }
+
+  /* Painel de estatísticas dentro do modal. */
+  .victory-stats {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 1.5rem;
+    border-radius: 0.75rem;
+    background: color-mix(in oklch, var(--color-base-100, #fff) 60%, transparent);
+    border: 1px solid var(--glass-border, rgba(0,0,0,0.08));
+  }
+
+  .victory-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .victory-stat__value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--color-primary, #4444dd);
+  }
+
+  .victory-stat__label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+  }
+
+  .victory-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Botão de novo jogo no modal — reutiliza os componentes daisyUI do style.css. */
+  .victory-btn-new    { @apply btn btn-primary; }
+  .victory-btn-review { @apply btn btn-ghost; }
+
+} /* fim @layer components */
+
+
+/* ==========================================================================
+   7. ANIMAÇÕES
+   ========================================================================== */
+
+@keyframes cat-pop {
+  0%   { transform: scale(0.5) rotate(-15deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(5deg);  opacity: 1; }
+  100% { transform: scale(1)   rotate(0deg);   opacity: 1; }
+}
+
+@keyframes conflict-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--meow-conflict-border); }
+  50%       { box-shadow: inset 0 0 0 3px var(--meow-conflict-border),
+                          0 0 10px 2px color-mix(in oklch, var(--meow-conflict-fg) 35%, transparent); }
+}
+
+@keyframes hint-pulse {
+  from { box-shadow:
+    inset 0 0 0 2px color-mix(in oklch, var(--meow-hint-glow) 90%, transparent),
+    0 0 8px 1px    color-mix(in oklch, var(--meow-hint-glow) 50%, transparent); }
+  to   { box-shadow:
+    inset 0 0 0 2px color-mix(in oklch, var(--meow-hint-glow) 100%, transparent),
+    0 0 18px 4px   color-mix(in oklch, var(--meow-hint-glow) 75%, transparent); }
+}
+
+@keyframes victory-enter {
+  0%   { transform: scale(0.7) translateY(40px); opacity: 0; }
+  60%  { transform: scale(1.04) translateY(-8px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); }
+}
+
+@keyframes victory-bounce {
+  from { transform: translateY(0)   rotate(-6deg) scale(1); }
+  to   { transform: translateY(-8px) rotate(6deg) scale(1.07); }
+}
+
+/* Respeita a preferência de redução de movimento do sistema. */
+@media (prefers-reduced-motion: reduce) {
+  .meow-cell--cat::after      { animation: none; }
+  .meow-cell--conflict        { animation: none; }
+  .meow-cell--hint            { animation: none; }
+  .victory-card               { animation: none; }
+  .victory-cat                { animation: none; }
+  .meow-board.meow-board--solved::after { animation: none; }
+}
