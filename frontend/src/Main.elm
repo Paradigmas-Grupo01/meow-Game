@@ -39,14 +39,14 @@ init : Flags -> ( Model, Cmd Msg )
 init flags =
     ( { board = Meowdoku.initBoard 6 1 []
       , regions = []
-      , puzzleName = "exemplo"
+      , puzzleName = "classic_6x6"
       , darkTheme = flags.darkTheme
       , loading = True
       , error = Nothing
       , hintMessage = Nothing
       , playerWon = False
       }
-    , Api.fetchMeowdokuExample "exemplo" GotPuzzle
+    , Api.fetchMeowdokuExample "classic_6x6" GotPuzzle
     )
 
 
@@ -202,7 +202,7 @@ view model =
         [ header [ class "app-header" ]
             [ div [ class "app-container app-header-content" ]
                 [ div [ class "brand" ]
-                    [ div [ class "brand-icon" ] [ text "🐱" ]
+                    [ div [ class "brand-icon" ] [ text "M" ]
                     , div []
                         [ h1 [ class "app-title" ] [ text "Meowdoku" ]
                         , span [ class "app-subtitle" ]
@@ -225,9 +225,9 @@ view model =
                     , viewInstructions
                     , div [ class "controls-section" ]
                         [ span [ class "section-label" ] [ text "CONTROLES" ]
-                        , button [ class "btn btn-hint", onClick HintRequested ] [ text "💡 Pedir Dica" ]
-                        , button [ class "btn btn-solve", onClick SolveRequested ] [ text "✨ Resolver com Prolog" ]
-                        , button [ class "btn btn-reset", onClick ResetRequested ] [ text "↻ Novo Jogo" ]
+                        , button [ class "btn btn-hint", onClick HintRequested ] [ text "Pedir Dica" ]
+                        , button [ class "btn btn-solve", onClick SolveRequested ] [ text "Resolver com Prolog" ]
+                        , button [ class "btn btn-reset", onClick ResetRequested ] [ text "Novo Jogo" ]
                         ]
                     ]
                 ]
@@ -332,6 +332,8 @@ viewCell cell =
         [ class "meowdoku-cell"
         , classList
             [ ( "cell--conflict", cell.hasConflict )
+            , ( "cell--cat", cell.mark == HasCat )
+            , ( "cell--blocked", cell.mark == MarkedX )
             , ( "region-" ++ String.fromInt cell.regionId, True )
             ]
         , onClick (CellClicked cell.row cell.col)
@@ -345,7 +347,7 @@ viewCell cell =
         , style "user-select" "none"
         , style "border" "1px solid rgba(0,0,0,0.15)"
         ]
-        [ text (Meowdoku.markToString cell.mark) ]
+        [ span [ class "cell-content" ] [ text (Meowdoku.markToString cell.mark) ] ]
 
 
 viewMessages : Model -> Html Msg
@@ -366,8 +368,7 @@ viewMessages model =
         _ ->
             if model.playerWon then
                 div [ class "message message--success" ]
-                    [ span [ class "message-icon" ] [ text "🎉" ]
-                    , div []
+                    [ div []
                         [ h2 [] [ text "Parabéns! Você venceu!" ]
                         , span [] [ text "Você completou o desafio respeitando todas as regras. Que tal jogar novamente?" ]
                         ]
@@ -390,10 +391,10 @@ viewThemeToggle model =
         , span []
             [ text
                 (if model.darkTheme then
-                    "🌙 Tema escuro"
+                    "Tema escuro"
 
                  else
-                    "☀️ Tema claro"
+                    "Tema claro"
                 )
             ]
         ]
