@@ -108,11 +108,20 @@ update msg model =
             )
 
         GotHint (Ok hint) ->
+            let
+                action =
+                    if hint.value == 1 then
+                        "coloque um gato"
+                    else
+                        "marque um X"
+            in
             ( { model
                 | loading = False
                 , hintMessage =
                     Just
-                        ("Dica: coloque um gato na linha "
+                        ("Dica: "
+                            ++ action
+                            ++ " na linha "
                             ++ String.fromInt (hint.row + 1)
                             ++ ", coluna "
                             ++ String.fromInt (hint.col + 1)
