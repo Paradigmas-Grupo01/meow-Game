@@ -91,7 +91,7 @@ update msg model =
                     Meowdoku.cycleMarkAt r c model.board
 
                 completedByPlayer =
-                    Meowdoku.isSolved updatedBoard
+                    Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
             in
             ( { model
                 | board = updatedBoard

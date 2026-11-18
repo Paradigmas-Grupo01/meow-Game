@@ -213,14 +213,14 @@ checkConflicts board =
     { board | rows = Array.map (Array.map withConflict) board.rows }
 
 
-isSolved : Board -> Bool
-isSolved board =
+isSolved : Board -> Int -> Bool
+isSolved board catsPerUnit =
     let
         allCells =
             cells board
 
         totalCatsExpected =
-            board.size * board.catsPerUnit
+            board.size * catsPerUnit
 
         actualCats =
             List.filter (\cell -> cell.mark == HasCat) allCells
@@ -230,13 +230,16 @@ isSolved board =
 
         rowsOk =
             List.range 0 (board.size - 1)
-                |> List.all (\r -> countCatsInRow r board == board.catsPerUnit)
+                |> List.all (\r -> countCatsInRow r board == catsPerUnit)
 
         colsOk =
             List.range 0 (board.size - 1)
-                |> List.all (\c -> countCatsInCol c board == board.catsPerUnit)
+                |> List.all (\c -> countCatsInCol c board == catsPerUnit)
+
+        regionsOk =
+            List.all (\cell -> countCatsInRegion cell.regionId board == catsPerUnit) allCells
     in
-    (List.length actualCats == totalCatsExpected) && noConflicts && rowsOk && colsOk
+    (List.length actualCats == totalCatsExpected) && noConflicts && rowsOk && colsOk && regionsOk
 
 
 boardToMatrix : Board -> List (List Int)
