@@ -60,12 +60,93 @@ test(solve_double_8x8_k2) :-
     Total =:= 16,
     valid_solution(Regions, Solution, 2).
 
-test(hint_returns_valid_step) :-
+test(hint_places_cat_in_singleton_region) :-
     example_puzzle(classic_6x6, 6, 1, Regions),
-    length(EmptyBoard, 6),
-    maplist(=([0,0,0,0,0,0]), EmptyBoard),
-    once(hint(Regions, EmptyBoard, 1, hint(R, C, Val, Reason))),
-    integer(R), integer(C), Val =:= 1, string(Reason).
+    length(Board, 6),
+    maplist(=([0,0,0,0,0,0]), Board),
+    hint(Regions, Board, 1, hint(5, 1, 1, Reason)),
+    once(sub_string(Reason, _, _, _, "território")).
+
+test(hint_respects_player_discard_marks_in_row) :-
+    column_regions(6, Regions),
+    Board = [[0,-1,-1,-1,-1,-1]|Rows],
+    length(Rows, 5),
+    maplist(=([0,0,0,0,0,0]), Rows),
+    hint(Regions, Board, 1, hint(0, 0, 1, Reason)),
+    once(sub_string(Reason, _, _, _, "linha")).
+
+test(hint_respects_player_discard_marks_in_column) :-
+    column_regions(6, Regions),
+    Board = [[0,0,0,0,0,0]|Rows],
+    length(Rows, 5),
+    maplist(=([-1,0,0,0,0,0]), Rows),
+    hint(Regions, Board, 1, hint(0, 0, 1, Reason)),
+    once(sub_string(Reason, _, _, _, "coluna")).
+
+test(hint_discards_cell_near_cat) :-
+    column_regions(6, Regions),
+    Board = [[1,0,0,0,0,0]|Rows],
+    length(Rows, 5),
+    maplist(=([0,0,0,0,0,0]), Rows),
+    hint(Regions, Board, 1, hint(0, 1, 0, Reason)),
+    once(sub_string(Reason, _, _, _, "vizinha")).
+
+test(hint_reports_inconsistent_marks) :-
+    column_regions(6, Regions),
+    Board = [[-1,-1,-1,-1,-1,-1]|Rows],
+    length(Rows, 5),
+    maplist(=([0,0,0,0,0,0]), Rows),
+    hint(Regions, Board, 1, unsolvable).
+
+test(hint_reports_complete_with_discards) :-
+    column_regions(6, Regions),
+    once(solve(Regions, 1, Solution)),
+    maplist(maplist(mark_as_played), Solution, Board),
+    hint(Regions, Board, 1, complete).
+
+test(no_arbitrary_hint_for_ambiguous_board, [fail]) :-
+    column_regions(6, Regions),
+    length(Board, 6),
+    maplist(=([0,0,0,0,0,0]), Board),
+    hint(Regions, Board, 1, _).
+
+test(uniqueness_rejects_multiple_solutions, [fail]) :-
+    column_regions(6, Regions),
+    has_unique_solution(Regions, 1).
+
+test(uniqueness_rejects_no_solution, [fail]) :-
+    has_unique_solution([[0,1],[0,1]], 1).
+
+test(four_classic_fallbacks_are_connected_and_unique) :-
+    findall(Size, example_puzzle(_, Size, 1, _), Sizes),
+    msort(Sizes, [6,6,8,8]),
+    forall(example_puzzle(_, Size, K, Regions),
+           (connected_partition(Regions, Size), has_unique_solution(Regions, K))).
+
+test(generation_preserves_partition_and_solution,
+     [forall(member(Size-K, [6-1, 8-1, 8-2]))]) :-
+    generate(Size, K, Regions, Solution),
+    connected_partition(Regions, Size),
+    valid_solution(Regions, Solution, K),
+    has_unique_solution(Regions, K).
+
+column_regions(Size, Regions) :-
+    Max is Size - 1,
+    numlist(0, Max, Ids),
+    length(Regions, Size),
+    maplist(=(Ids), Regions).
+
+mark_as_played(0, -1).
+mark_as_played(1, 1).
+
+connected_partition(Regions, Size) :-
+    length(Regions, Size),
+    maplist(same_length(Regions), Regions),
+    append(Regions, Cells),
+    sort(Cells, Ids),
+    Max is Size - 1,
+    numlist(0, Max, Ids),
+    forall(member(Id, Ids), meowdoku:region_connected(Regions, Id)).
 
 test(excess_cats_in_region_fail, [fail]) :-
     example_puzzle(classic_6x6, 6, 1, Regions),
