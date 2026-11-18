@@ -64,8 +64,14 @@ test(hint_places_cat_in_singleton_region) :-
     Regions = [[0,1,2,3],[0,0,2,3],[0,0,2,3],[0,0,2,3]],
     length(Board, 4),
     maplist(=([0,0,0,0]), Board),
-    hint(Regions, Board, 1, hint(0, 1, 1, Reason)),
+    hint(dimensions(4, 1), Regions, Board, hint(0, 1, 1, Reason)),
     once(sub_string(Reason, _, _, _, "território")).
+
+test(hint_rejects_mismatched_size, [fail]) :-
+    column_regions(6, Regions),
+    length(Board, 6),
+    maplist(=([0,0,0,0,0,0]), Board),
+    hint(dimensions(8, 1), Regions, Board, _).
 
 test(hint_respects_player_discard_marks_in_row) :-
     column_regions(6, Regions),

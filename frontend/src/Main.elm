@@ -46,7 +46,7 @@ init flags =
       , hintMessage = Nothing
       , playerWon = False
       }
-    , Api.fetchMeowdokuExample "exemplo" GotPuzzle
+    , Api.fetchMeowdokuExample "classic_6x6" GotPuzzle
     )
 
 

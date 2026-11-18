@@ -139,7 +139,19 @@ has_unique_solution(Regions, CatsPerUnit) :-
     aggregate_all(count, solve(Regions, CatsPerUnit, _), 1).
 
 % Board: 0 = vazia, 1 = gato, -1 = X. Na dica, 0 indica marcar X.
+% dimensions(Size, K) informa o lado do tabuleiro e a cota de gatos por unidade.
+hint(dimensions(Size, K), Regions, Board, Hint) :-
+    !,
+    integer(Size),
+    Size > 0,
+    length(Regions, Size),
+    board_hint(Regions, Board, K, Hint).
+% Forma usada pelos chamadores anteriores, com o tamanho inferido do mapa.
 hint(Regions, Board, K, Hint) :-
+    is_list(Regions),
+    board_hint(Regions, Board, K, Hint).
+
+board_hint(Regions, Board, K, Hint) :-
     (   once(board_solution(Regions, Board, K, Solution))
     ->  consistent_hint(Regions, Board, K, Solution, Result)
     ;   Result = unsolvable
