@@ -58,8 +58,51 @@ type Msg
     | SolveRequested
     | GotSolution (Result String (List (List Int)))
     | ResetRequested
+    | NewGameRequested
+    | SelectPuzzle String
     | ThemeToggled Bool
     | ErrorDismissed
+
+
+nextPuzzleName : String -> String
+nextPuzzleName current =
+    case current of
+        "classic_6x6" ->
+            "lantern_6x6"
+
+        "lantern_6x6" ->
+            "classic_8x8"
+
+        "classic_8x8" ->
+            "lantern_8x8"
+
+        "lantern_8x8" ->
+            "double_8x8"
+
+        _ ->
+            "classic_6x6"
+
+
+puzzleLabel : String -> String
+puzzleLabel name =
+    case name of
+        "classic_6x6" ->
+            "6x6 Clássico"
+
+        "lantern_6x6" ->
+            "6x6 Lanterna"
+
+        "classic_8x8" ->
+            "8x8 Clássico"
+
+        "lantern_8x8" ->
+            "8x8 Lanterna"
+
+        "double_8x8" ->
+            "8x8 Modo 2 Gatos"
+
+        _ ->
+            name
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -169,6 +212,30 @@ update msg model =
         GotSolution (Err err) ->
             ( { model | loading = False, error = Just err }, Cmd.none )
 
+        NewGameRequested ->
+            let
+                next =
+                    nextPuzzleName model.puzzleName
+            in
+            ( { model
+                | loading = True
+                , error = Nothing
+                , hintMessage = Nothing
+                , playerWon = False
+              }
+            , Api.fetchMeowdokuExample next GotPuzzle
+            )
+
+        SelectPuzzle name ->
+            ( { model
+                | loading = True
+                , error = Nothing
+                , hintMessage = Nothing
+                , playerWon = False
+              }
+            , Api.fetchMeowdokuExample name GotPuzzle
+            )
+
         ResetRequested ->
             ( { model
                 | board = Meowdoku.initBoard model.board.size model.board.catsPerUnit model.regions
@@ -217,18 +284,27 @@ view model =
                 [ viewBoard model.board
                 , aside [ class "side-panel" ]
                     [ div [ class "panel-heading" ]
-                        [ span [ class "eyebrow" ] [ text "PAINEL DO JOGO" ]
+                        [ span [ class "eyebrow" ] [ text ("FASE ATUAL: " ++ puzzleLabel model.puzzleName) ]
                         , h2 [] [ text "Sua partida" ]
                         ]
                     , div [ class "message-area" ] [ viewMessages model ]
                     , viewStats model.board
-                    , viewInstructions
                     , div [ class "controls-section" ]
-                        [ span [ class "section-label" ] [ text "CONTROLES" ]
+                        [ span [ class "section-label" ] [ text "SELETOR DE FASES" ]
+                        , div [ class "phase-selector", style "display" "flex", style "flex-wrap" "wrap", style "gap" "0.35rem", style "margin-bottom" "0.6rem" ]
+                            [ viewPhaseButton model "classic_6x6" "6x6"
+                            , viewPhaseButton model "lantern_6x6" "6x6 (L)"
+                            , viewPhaseButton model "classic_8x8" "8x8"
+                            , viewPhaseButton model "lantern_8x8" "8x8 (L)"
+                            , viewPhaseButton model "double_8x8" "8x8 (K=2)"
+                            ]
+                        , span [ class "section-label" ] [ text "AÇÕES" ]
                         , button [ class "btn btn-hint", onClick HintRequested ] [ text "Pedir Dica" ]
                         , button [ class "btn btn-solve", onClick SolveRequested ] [ text "Resolver com Prolog" ]
-                        , button [ class "btn btn-reset", onClick ResetRequested ] [ text "Novo Jogo" ]
+                        , button [ class "btn btn-reset", onClick NewGameRequested ] [ text "Novo Jogo (Avançar)" ]
+                        , button [ class "btn btn-clear", onClick ResetRequested ] [ text "Limpar Tabuleiro" ]
                         ]
+                    , viewInstructions
                     ]
                 ]
             ]
@@ -370,12 +446,42 @@ viewMessages model =
                 div [ class "message message--success" ]
                     [ div []
                         [ h2 [] [ text "Parabéns! Você venceu!" ]
-                        , span [] [ text "Você completou o desafio respeitando todas as regras. Que tal jogar novamente?" ]
+                        , span [] [ text "Você completou o desafio respeitando todas as regras." ]
                         ]
+                    , button [ class "btn btn-reset", onClick NewGameRequested, style "margin-top" "0.5rem" ]
+                        [ text "Jogar Próxima Fase" ]
                     ]
 
             else
                 text ""
+
+
+viewPhaseButton : Model -> String -> String -> Html Msg
+viewPhaseButton model id label =
+    button
+        [ class "btn btn-phase"
+        , style "font-size" "0.75rem"
+        , style "padding" "0.35rem 0.55rem"
+        , style "background"
+            (if model.puzzleName == id then
+                "var(--primary, #7763d8)"
+
+             else
+                "rgba(0,0,0,0.06)"
+            )
+        , style "color"
+            (if model.puzzleName == id then
+                "#ffffff"
+
+             else
+                "inherit"
+            )
+        , style "border-radius" "0.375rem"
+        , style "border" "none"
+        , style "cursor" "pointer"
+        , onClick (SelectPuzzle id)
+        ]
+        [ text label ]
 
 
 viewThemeToggle : Model -> Html Msg
