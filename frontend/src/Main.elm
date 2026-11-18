@@ -7,7 +7,10 @@ import Html exposing (Html, aside, button, div, footer, h1, h2, header, main_, s
 import Html.Attributes exposing (class, classList, style)
 import Html.Events exposing (onClick)
 import Json.Decode as Decode
+import Json.Encode as Encode
 import Meowdoku exposing (Board, Cell, CellMark(..))
+import Svg exposing (Svg)
+import Svg.Attributes as SvgAttr
 
 
 main : Program Flags Model Msg
@@ -35,7 +38,9 @@ type alias Model =
     , hintMessage : Maybe String
     , playerWon : Bool
     , isDragging : Bool
+    , dragStart : Maybe ( Int, Int )
     , dragMark : CellMark
+    , hasMovedInDrag : Bool
     }
 
 
@@ -50,7 +55,9 @@ init flags =
       , hintMessage = Nothing
       , playerWon = False
       , isDragging = False
+      , dragStart = Nothing
       , dragMark = Empty
+      , hasMovedInDrag = False
       }
     , Api.fetchMeowdokuExample "classic_6x6" GotPuzzle
     )
@@ -59,6 +66,7 @@ init flags =
 type Msg
     = GotPuzzle (Result String MeowdokuPuzzle)
     | CellClicked Int Int
+    | CellDoubleClicked Int Int
     | DragStarted Int Int
     | DragEntered Int Int
     | DragEnded
@@ -138,9 +146,49 @@ update msg model =
             ( { model | loading = False, error = Just err }, Cmd.none )
 
         CellClicked r c ->
+            if model.hasMovedInDrag then
+                ( { model | hasMovedInDrag = False }, Cmd.none )
+
+            else
+                let
+                    currentMark =
+                        case Meowdoku.getCell r c model.board of
+                            Just cell ->
+                                cell.mark
+
+                            Nothing ->
+                                Empty
+
+                    newMark =
+                        case currentMark of
+                            Empty ->
+                                MarkedX
+
+                            MarkedX ->
+                                Empty
+
+                            HasCat ->
+                                Empty
+
+                    updatedBoard =
+                        Meowdoku.setMarkAt r c newMark model.board
+
+                    completedByPlayer =
+                        Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+                in
+                ( { model
+                    | board = updatedBoard
+                    , hintMessage = Nothing
+                    , error = Nothing
+                    , playerWon = completedByPlayer
+                  }
+                , Cmd.none
+                )
+
+        CellDoubleClicked r c ->
             let
                 updatedBoard =
-                    Meowdoku.cycleMarkAt r c model.board
+                    Meowdoku.setMarkAt r c HasCat model.board
 
                 completedByPlayer =
                     Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
@@ -156,27 +204,27 @@ update msg model =
 
         DragStarted r c ->
             let
-                updatedBoard =
-                    Meowdoku.cycleMarkAt r c model.board
-
-                newMark =
-                    case Meowdoku.getCell r c updatedBoard of
+                currentMark =
+                    case Meowdoku.getCell r c model.board of
                         Just cell ->
                             cell.mark
 
                         Nothing ->
                             Empty
 
-                completedByPlayer =
-                    Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+                chosenDragMark =
+                    case currentMark of
+                        Empty ->
+                            MarkedX
+
+                        _ ->
+                            Empty
             in
             ( { model
-                | board = updatedBoard
-                , isDragging = True
-                , dragMark = newMark
-                , hintMessage = Nothing
-                , error = Nothing
-                , playerWon = completedByPlayer
+                | isDragging = True
+                , dragStart = Just ( r, c )
+                , dragMark = chosenDragMark
+                , hasMovedInDrag = False
               }
             , Cmd.none
             )
@@ -184,14 +232,23 @@ update msg model =
         DragEntered r c ->
             if model.isDragging then
                 let
+                    intermediateBoard =
+                        case ( model.hasMovedInDrag, model.dragStart ) of
+                            ( False, Just ( startR, startC ) ) ->
+                                Meowdoku.setMarkAt startR startC model.dragMark model.board
+
+                            _ ->
+                                model.board
+
                     updatedBoard =
-                        Meowdoku.setMarkAt r c model.dragMark model.board
+                        Meowdoku.setMarkAt r c model.dragMark intermediateBoard
 
                     completedByPlayer =
                         Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
                 in
                 ( { model
                     | board = updatedBoard
+                    , hasMovedInDrag = True
                     , hintMessage = Nothing
                     , error = Nothing
                     , playerWon = completedByPlayer
@@ -203,7 +260,7 @@ update msg model =
                 ( model, Cmd.none )
 
         DragEnded ->
-            ( { model | isDragging = False }, Cmd.none )
+            ( { model | isDragging = False, dragStart = Nothing }, Cmd.none )
 
         HintRequested ->
             ( { model | loading = True, error = Nothing, hintMessage = Nothing }
@@ -329,6 +386,13 @@ view model =
             [ ( "app", True )
             , ( "dark-theme", model.darkTheme )
             ]
+        , Html.Attributes.attribute "data-theme"
+            (if model.darkTheme then
+                "dark"
+
+             else
+                "light"
+            )
         ]
         [ header [ class "app-header" ]
             [ div [ class "app-container app-header-content" ]
@@ -483,6 +547,8 @@ viewCell cell =
             , ( "cell--blocked", cell.mark == MarkedX )
             , ( "region-" ++ String.fromInt cell.regionId, True )
             ]
+        , onClick (CellClicked cell.row cell.col)
+        , Html.Events.on "dblclick" (Decode.succeed (CellDoubleClicked cell.row cell.col))
         , Html.Events.on "mousedown" (Decode.succeed (DragStarted cell.row cell.col))
         , Html.Events.on "mouseenter" (Decode.succeed (DragEntered cell.row cell.col))
         , Html.Attributes.attribute "draggable" "false"
@@ -495,8 +561,36 @@ viewCell cell =
         , style "border-radius" "0.375rem"
         , style "user-select" "none"
         , style "border" "1px solid rgba(0,0,0,0.15)"
+        , style "overflow" "hidden"
+        , style "padding" "0"
         ]
-        [ span [ class "cell-content" ] [ text (Meowdoku.markToString cell.mark) ] ]
+        [ viewCellContent cell.mark ]
+
+
+viewCellContent : CellMark -> Html Msg
+viewCellContent mark =
+    case mark of
+        Empty ->
+            text ""
+
+        MarkedX ->
+            span [ class "cell-content", class "cell-content--x" ] [ text "X" ]
+
+        HasCat ->
+            Html.node "video"
+                [ Html.Attributes.attribute "src" "/pinguim.mp4"
+                , Html.Attributes.attribute "autoplay" ""
+                , Html.Attributes.attribute "loop" ""
+                , Html.Attributes.attribute "muted" ""
+                , Html.Attributes.attribute "playsinline" ""
+                , Html.Attributes.property "muted" (Encode.bool True)
+                , style "width" "100%"
+                , style "height" "100%"
+                , style "object-fit" "cover"
+                , style "pointer-events" "none"
+                , style "display" "block"
+                ]
+                []
 
 
 viewMessages : Model -> Html Msg
@@ -564,48 +658,52 @@ viewThemeToggle model =
             [ class "btn-theme"
             , classList [ ( "btn-theme--active", not model.darkTheme ) ]
             , onClick (ThemeToggled False)
+            , Html.Attributes.attribute "type" "button"
+            , Html.Attributes.attribute "title" "Tema claro"
+            , Html.Attributes.attribute "aria-label" "Tema claro"
+            , Html.Attributes.attribute "data-theme-choice" "light"
             ]
-            [ Html.node "svg"
-                [ Html.Attributes.attribute "xmlns" "http://www.w3.org/2000/svg"
-                , Html.Attributes.attribute "viewBox" "0 0 24 24"
-                , Html.Attributes.attribute "fill" "none"
-                , Html.Attributes.attribute "stroke" "currentColor"
-                , Html.Attributes.attribute "stroke-width" "2"
-                , Html.Attributes.attribute "stroke-linecap" "round"
-                , Html.Attributes.attribute "stroke-linejoin" "round"
-                , Html.Attributes.attribute "width" "20"
-                , Html.Attributes.attribute "height" "20"
-                , Html.Attributes.attribute "aria-label" "Tema claro"
+            [ Svg.svg
+                [ SvgAttr.viewBox "0 0 24 24"
+                , SvgAttr.width "20"
+                , SvgAttr.height "20"
+                , SvgAttr.fill "none"
+                , SvgAttr.stroke "currentColor"
+                , SvgAttr.strokeWidth "2"
+                , SvgAttr.strokeLinecap "round"
+                , SvgAttr.strokeLinejoin "round"
                 ]
-                [ Html.node "circle" [ Html.Attributes.attribute "cx" "12", Html.Attributes.attribute "cy" "12", Html.Attributes.attribute "r" "5" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "12", Html.Attributes.attribute "y1" "1", Html.Attributes.attribute "x2" "12", Html.Attributes.attribute "y2" "3" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "12", Html.Attributes.attribute "y1" "21", Html.Attributes.attribute "x2" "12", Html.Attributes.attribute "y2" "23" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "4.22", Html.Attributes.attribute "y1" "4.22", Html.Attributes.attribute "x2" "5.64", Html.Attributes.attribute "y2" "5.64" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "18.36", Html.Attributes.attribute "y1" "18.36", Html.Attributes.attribute "x2" "19.78", Html.Attributes.attribute "y2" "19.78" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "1", Html.Attributes.attribute "y1" "12", Html.Attributes.attribute "x2" "3", Html.Attributes.attribute "y2" "12" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "21", Html.Attributes.attribute "y1" "12", Html.Attributes.attribute "x2" "23", Html.Attributes.attribute "y2" "12" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "4.22", Html.Attributes.attribute "y1" "19.78", Html.Attributes.attribute "x2" "5.64", Html.Attributes.attribute "y2" "18.36" ] []
-                , Html.node "line" [ Html.Attributes.attribute "x1" "18.36", Html.Attributes.attribute "y1" "5.64", Html.Attributes.attribute "x2" "19.78", Html.Attributes.attribute "y2" "4.22" ] []
+                [ Svg.circle [ SvgAttr.cx "12", SvgAttr.cy "12", SvgAttr.r "5" ] []
+                , Svg.line [ SvgAttr.x1 "12", SvgAttr.y1 "1", SvgAttr.x2 "12", SvgAttr.y2 "3" ] []
+                , Svg.line [ SvgAttr.x1 "12", SvgAttr.y1 "21", SvgAttr.x2 "12", SvgAttr.y2 "23" ] []
+                , Svg.line [ SvgAttr.x1 "4.22", SvgAttr.y1 "4.22", SvgAttr.x2 "5.64", SvgAttr.y2 "5.64" ] []
+                , Svg.line [ SvgAttr.x1 "18.36", SvgAttr.y1 "18.36", SvgAttr.x2 "19.78", SvgAttr.y2 "19.78" ] []
+                , Svg.line [ SvgAttr.x1 "1", SvgAttr.y1 "12", SvgAttr.x2 "3", SvgAttr.y2 "12" ] []
+                , Svg.line [ SvgAttr.x1 "21", SvgAttr.y1 "12", SvgAttr.x2 "23", SvgAttr.y2 "12" ] []
+                , Svg.line [ SvgAttr.x1 "4.22", SvgAttr.y1 "19.78", SvgAttr.x2 "5.64", SvgAttr.y2 "18.36" ] []
+                , Svg.line [ SvgAttr.x1 "18.36", SvgAttr.y1 "5.64", SvgAttr.x2 "19.78", SvgAttr.y2 "4.22" ] []
                 ]
             ]
         , button
             [ class "btn-theme"
             , classList [ ( "btn-theme--active", model.darkTheme ) ]
             , onClick (ThemeToggled True)
+            , Html.Attributes.attribute "type" "button"
+            , Html.Attributes.attribute "title" "Tema escuro"
+            , Html.Attributes.attribute "aria-label" "Tema escuro"
+            , Html.Attributes.attribute "data-theme-choice" "dark"
             ]
-            [ Html.node "svg"
-                [ Html.Attributes.attribute "xmlns" "http://www.w3.org/2000/svg"
-                , Html.Attributes.attribute "viewBox" "0 0 24 24"
-                , Html.Attributes.attribute "fill" "none"
-                , Html.Attributes.attribute "stroke" "currentColor"
-                , Html.Attributes.attribute "stroke-width" "2"
-                , Html.Attributes.attribute "stroke-linecap" "round"
-                , Html.Attributes.attribute "stroke-linejoin" "round"
-                , Html.Attributes.attribute "width" "20"
-                , Html.Attributes.attribute "height" "20"
-                , Html.Attributes.attribute "aria-label" "Tema escuro"
+            [ Svg.svg
+                [ SvgAttr.viewBox "0 0 24 24"
+                , SvgAttr.width "20"
+                , SvgAttr.height "20"
+                , SvgAttr.fill "none"
+                , SvgAttr.stroke "currentColor"
+                , SvgAttr.strokeWidth "2"
+                , SvgAttr.strokeLinecap "round"
+                , SvgAttr.strokeLinejoin "round"
                 ]
-                [ Html.node "path" [ Html.Attributes.attribute "d" "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" ] []
+                [ Svg.path [ SvgAttr.d "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" ] []
                 ]
             ]
         ]
