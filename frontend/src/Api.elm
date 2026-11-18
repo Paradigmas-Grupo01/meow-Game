@@ -165,12 +165,18 @@ apiErrorToString error =
             httpErrorToString httpError
 
         Rejected status body ->
-            case ( status, Decode.decodeString detailDecoder body ) of
-                ( 422, Ok detail ) ->
-                    detail
+            clientDetail status body
+                |> Maybe.withDefault (httpErrorToString (Http.BadStatus status))
 
-                _ ->
-                    httpErrorToString (Http.BadStatus status)
+
+clientDetail : Int -> String -> Maybe String
+clientDetail status body =
+    if status >= 400 && status < 500 then
+        Decode.decodeString detailDecoder body
+            |> Result.toMaybe
+
+    else
+        Nothing
 
 
 detailDecoder : Decoder String
