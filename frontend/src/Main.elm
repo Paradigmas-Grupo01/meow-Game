@@ -659,7 +659,7 @@ viewCellContent mark =
 
         HasCat ->
             Html.node "video"
-                [ Html.Attributes.attribute "src" "/pinguim.mp4"
+                [ Html.Attributes.attribute "src" "/gato.mp4"
                 , Html.Attributes.attribute "autoplay" ""
                 , Html.Attributes.attribute "muted" ""
                 , Html.Attributes.attribute "playsinline" ""
@@ -840,7 +840,7 @@ viewRulesModal model =
                         ]
                     , div [ class "rule-item" ]
                         [ span [ class "rule-badge" ] [ text "4" ]
-                        , span [] [ text "2 cliques rápidos: posiciona o gato. Se acertar, o pinguim surge! Se errar, conta 1 erro (3 erros encerram o jogo)." ]
+                        , span [] [ text "2 cliques rápidos: posiciona o gato. Se acertar, o gatinho surge! Se errar, conta 1 erro (3 erros encerram o jogo)." ]
                         ]
                     , div [ class "rule-item" ]
                         [ span [ class "rule-badge" ] [ text "5" ]
