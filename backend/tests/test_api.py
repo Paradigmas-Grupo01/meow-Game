@@ -108,16 +108,17 @@ def test_meowdoku_solve_route():
 def test_meowdoku_hint_route():
     example_res = client.get("/api/meowdoku/example?name=classic_6x6")
     regions = example_res.json()["regions"]
-    empty_board = [[0] * 6 for _ in range(6)]
+    board = [[0] * 6 for _ in range(6)]
+    board[0] = [-1, -1, -1, -1, -1, 0]
     response = client.post(
         "/api/meowdoku/hint",
-        json={"regions": regions, "board": empty_board, "cats_per_unit": 1}
+        json={"regions": regions, "board": board, "cats_per_unit": 1}
     )
     assert response.status_code == 200
     hint_data = response.json()
-    assert "row" in hint_data
-    assert "col" in hint_data
-    assert "reason" in hint_data
+    assert hint_data["row"] == 0
+    assert hint_data["col"] == 5
+    assert "linha" in hint_data["reason"]
     assert hint_data["value"] == 1
 
 

@@ -75,8 +75,8 @@ def hint(regions: Grid, board: Grid, cats_per_unit: int) -> dict[str, Any]:
     # hint/4 devolve hint(Linha, Coluna, Valor, Motivo) ou o átomo complete.
     # `_Dica =.. [Tipo|Args]` separa o nome do termo dos seus argumentos.
     result = janus.query_once(
-        "meowdoku:hint(Regions, Board, Cats, _Dica), _Dica =.. [Tipo|Args]",
-        {"Regions": regions, "Board": board, "Cats": cats_per_unit},
+        "meowdoku:hint(dimensions(Size, Cats), Regions, Board, _Dica), _Dica =.. [Tipo|Args]",
+        {"Size": len(regions), "Regions": regions, "Board": board, "Cats": cats_per_unit},
     )
     if not result["truth"]:
         raise NoSolution

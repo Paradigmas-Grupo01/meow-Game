@@ -13,8 +13,13 @@
 :- use_module(library(aggregate)).
 
 solve(Regions, CatsPerUnit, Solution) :-
+    board_constraints(Regions, CatsPerUnit, Solution, Cells),
+    labeling([ff, bisect], Cells).
+
+board_constraints(Regions, CatsPerUnit, Solution, Cells) :-
     length(Regions, N),
     N > 0,
+    maplist(make_row(N), Regions),
     length(Solution, N),
     maplist(make_row(N), Solution),
     append(Solution, Cells),
@@ -25,8 +30,7 @@ solve(Regions, CatsPerUnit, Solution) :-
     flatten_grid(Regions, FlatRegions),
     max_list(FlatRegions, MaxRegionId),
     enforce_region_constraints(Solution, Regions, 0, MaxRegionId, CatsPerUnit),
-    enforce_no_touch(Solution),
-    labeling([ff, bisect], Cells).
+    enforce_no_touch(Solution).
 
 make_row(N, Row) :-
     length(Row, N).
@@ -134,66 +138,125 @@ check_no_touch_strict(Board) :-
 has_unique_solution(Regions, CatsPerUnit) :-
     aggregate_all(count, solve(Regions, CatsPerUnit, _), 1).
 
-hint(Regions, Board, CatsPerUnit, hint(R, C, 1, Reason)) :-
-    solve(Regions, CatsPerUnit, Solution),
-    nth0(R, Solution, SolRow),
-    nth0(C, SolRow, 1),
-    get_cell(Board, R, C, CurrentVal),
-    CurrentVal =\= 1,
-    explain_cat_placement(Regions, Board, CatsPerUnit, R, C, Reason),
-    !.
-hint(Regions, Board, CatsPerUnit, hint(R, C, 0, Reason)) :-
-    solve(Regions, CatsPerUnit, Solution),
-    nth0(R, Solution, SolRow),
-    nth0(C, SolRow, 0),
-    get_cell(Board, R, C, CurrentVal),
-    CurrentVal =:= 1,
-    format(string(Reason),
-        "A celula (~w,~w) deve ser descartada por violar as restricoes da partida.",
-        [R, C]),
-    !.
-hint(_, _, _, complete).
+% Board: 0 = vazia, 1 = gato, -1 = X. Na dica, 0 indica marcar X.
+% dimensions(Size, K) informa o lado do tabuleiro e a cota de gatos por unidade.
+hint(dimensions(Size, K), Regions, Board, Hint) :-
+    !,
+    integer(Size),
+    Size > 0,
+    length(Regions, Size),
+    board_hint(Regions, Board, K, Hint).
+% Forma usada pelos chamadores anteriores, com o tamanho inferido do mapa.
+hint(Regions, Board, K, Hint) :-
+    is_list(Regions),
+    board_hint(Regions, Board, K, Hint).
 
-explain_cat_placement(Regions, Board, K, R, C, Reason) :-
-    nth0(R, Board, BoardRow),
-    sum_list(BoardRow, RowSum),
-    CatsNeeded is K - RowSum,
-    CatsNeeded =:= 1,
-    nth0(R, Regions, RegRow),
-    nth0(C, RegRow, RegId),
+board_hint(Regions, Board, K, Hint) :-
+    (   once(board_solution(Regions, Board, K, Solution))
+    ->  consistent_hint(Regions, Board, K, Solution, Result)
+    ;   Result = unsolvable
+    ),
+    Hint = Result.
+
+board_solution(Regions, Board, K, Solution) :-
+    marked_board_constraints(Regions, Board, K, Solution, Cells),
+    labeling([ff, bisect], Cells).
+
+marked_board_constraints(Regions, Board, K, Solution, Cells) :-
+    board_constraints(Regions, K, Solution, Cells),
+    maplist(respect_marks, Board, Solution).
+
+respect_marks(Marks, Cells) :- maplist(respect_mark, Marks, Cells).
+respect_mark(0, _).
+respect_mark(1, 1).
+respect_mark(-1, 0).
+
+consistent_hint(Regions, Board, K, Solution, Hint) :-
+    append(Board, Marks),
+    include(=(1), Marks, Cats),
+    length(Cats, Placed),
+    length(Regions, Size),
+    (   Placed =:= Size * K
+    ->  Hint = complete
+    ;   findall(R-C, get_cell(Board, R, C, 1), PlacedCats),
+        findall(Unit, board_unit(Regions, Unit), Units),
+        findall(R-C, get_cell(Board, R, C, 0), EmptyCells),
+        findall(Cell-Why,
+                (member(Cell, EmptyCells), once(discard_reason(Cell, PlacedCats, Units, K, Why))),
+                Discards),
+        (   once(forced_hint(Units, PlacedCats, EmptyCells, Discards, K, Hint))
+        ->  true
+        ;   Discards = [(R-C)-Reason|_]
+        ->  Hint = hint(R, C, 0, Reason)
+        ;   once(contradiction_hint(Regions, Board, K, Solution, EmptyCells, Hint))
+        )
+    ).
+
+board_unit(Regions, unit(linha, Number, Cells)) :-
+    nth0(R, Regions, Row),
+    findall(R-C, nth0(C, Row, _), Cells),
+    Number is R + 1.
+board_unit(Regions, unit(coluna, Number, Cells)) :-
+    nth0(C, Regions, _),
+    findall(R-C, get_cell(Regions, R, C, _), Cells),
+    Number is C + 1.
+board_unit(Regions, unit(território, Number, Cells)) :-
+    append(Regions, Ids),
+    sort(Ids, RegionIds),
+    member(Id, RegionIds),
+    findall(R-C, get_cell(Regions, R, C, Id), Cells),
+    Number is Id + 1.
+
+count_in_unit(Cats, Cells, Count) :-
+    include(cell_in(Cells), Cats, InUnit),
+    length(InUnit, Count).
+
+cell_in(Cells, Cell) :- memberchk(Cell, Cells).
+
+discard_reason(R-C, Cats, _, _, Reason) :-
+    member(CatR-CatC, Cats),
+    abs(CatR - R) =< 1,
+    abs(CatC - C) =< 1,
+    Row is CatR + 1,
+    Col is CatC + 1,
     format(string(Reason),
-        "A linha ~w ja possui ~w gato(s). Posicione o proximo em (~w,~w) no territorio ~w.",
-        [R, RowSum, R, C, RegId]),
-    !.
-explain_cat_placement(Regions, Board, K, R, C, Reason) :-
-    clpfd:transpose(Board, Cols),
-    nth0(C, Cols, ColCells),
-    sum_list(ColCells, ColSum),
-    CatsNeeded is K - ColSum,
-    CatsNeeded =:= 1,
-    nth0(R, Regions, RegRow),
-    nth0(C, RegRow, RegId),
+           "A casa é vizinha do gato na linha ~d, coluna ~d. Gatos não podem se tocar, nem na diagonal.",
+           [Row, Col]).
+discard_reason(Cell, Cats, Units, K, Reason) :-
+    member(unit(Type, Number, Cells), Units),
+    memberchk(Cell, Cells),
+    count_in_unit(Cats, Cells, K),
+    format(string(Reason), "Já há ~d gato(s) no máximo permitido para ~w ~d.", [K, Type, Number]).
+
+forced_hint(Units, Cats, EmptyCells, Discards, K, hint(R, C, 1, Reason)) :-
+    member(unit(Type, Number, Cells), Units),
+    count_in_unit(Cats, Cells, Placed),
+    Remaining is K - Placed,
+    Remaining > 0,
+    include(cell_in(Cells), EmptyCells, EmptyInUnit),
+    exclude(discarded(Discards), EmptyInUnit, Candidates),
+    length(Candidates, Remaining),
+    Candidates = [R-C|_],
     format(string(Reason),
-        "A coluna ~w ja possui ~w gato(s). Posicione o proximo em (~w,~w) no territorio ~w.",
-        [C, ColSum, R, C, RegId]),
-    !.
-explain_cat_placement(Regions, Board, K, R, C, Reason) :-
-    nth0(R, Regions, RegRow),
-    nth0(C, RegRow, RegId),
-    collect_region_cells(Board, Regions, RegId, RegCells),
-    sum_list(RegCells, RegSum),
-    CatsNeeded is K - RegSum,
-    CatsNeeded =:= 1,
-    format(string(Reason),
-        "O territorio ~w ja possui ~w gato(s). Posicione o gato em (~w,~w).",
-        [RegId, RegSum, R, C]),
-    !.
-explain_cat_placement(Regions, _Board, _K, R, C, Reason) :-
-    nth0(R, Regions, RegRow),
-    nth0(C, RegRow, RegId),
-    format(string(Reason),
-        "A posicao (~w,~w) no territorio ~w e a unica opcao valida restante.",
-        [R, C, RegId]).
+           "Faltam ~d gato(s) em ~w ~d e restam exatamente ~d casa(s) possível(is).",
+           [Remaining, Type, Number, Remaining]).
+
+discarded(Discards, Cell) :- memberchk(Cell-_, Discards).
+
+% Uma solução testemunha serve apenas para escolher qual hipótese refutar.
+contradiction_hint(Regions, Board, K, Solution, EmptyCells, hint(R, C, Value, Reason)) :-
+    member(Value, [1, 0]),
+    member(R-C, EmptyCells),
+    get_cell(Solution, R, C, Value),
+    (   Value =:= 1
+    ->  Reason = "Se esta casa for marcada com X, não haverá como completar o tabuleiro seguindo as regras."
+    ;   Reason = "Se houver um gato nesta casa, não haverá como completar o tabuleiro seguindo as regras."
+    ),
+    Opposite is 1 - Value,
+    \+ ( marked_board_constraints(Regions, Board, K, Trial, Cells),
+         get_cell(Trial, R, C, Opposite),
+         labeling([ff, bisect], Cells)
+       ).
 
 example_puzzle(classic_6x6, 6, 1,
     [ [0, 0, 1, 1, 1, 2],
