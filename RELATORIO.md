@@ -24,6 +24,7 @@
 O Meowdoku adapta a mecânica de jogos lógicos como Star Battle e Queens para um tema felino. O jogador recebe um tabuleiro quadrado dividido em regiões coloridas e precisa posicionar uma quantidade determinada de gatos em cada linha, coluna e território, com a condição obrigatória de que nenhum gato toque outro, nem mesmo pelas diagonais. Todas as regras de posicionamento, a resolução do tabuleiro e as deduções de dicas foram desenvolvidas em SWI-Prolog utilizando programação lógica por restrições com CLP(FD), enquanto a interface visual e a resposta às interações do usuário foram implementadas em Elm.
 
 ![Captura de tela do sistema](docs/captura.png)
+![Final](docs/final.png)
 
 ## 3. Como executar
 
