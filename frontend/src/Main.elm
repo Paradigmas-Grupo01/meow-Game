@@ -88,7 +88,7 @@ update msg model =
         CellClicked r c ->
             let
                 updatedBoard =
-                    Meowdoku.cycleMark r c model.board
+                    Meowdoku.cycleMarkAt r c model.board
 
                 completedByPlayer =
                     Meowdoku.isSolved updatedBoard
@@ -154,7 +154,7 @@ update msg model =
                                     rowList
                             )
                         |> List.concat
-                        |> List.foldl (\( r, c, mark ) acc -> Meowdoku.setMark r c mark acc) board
+                        |> List.foldl (\( r, c, mark ) acc -> Meowdoku.setMarkAt r c mark acc) board
             in
             ( { model
                 | board = applySolution model.board
@@ -280,7 +280,7 @@ viewStats : Board -> Html Msg
 viewStats board =
     let
         totalPlaced =
-            board.cells
+            Meowdoku.cells board
                 |> List.filter (\c -> c.mark == HasCat)
                 |> List.length
 
@@ -288,7 +288,7 @@ viewStats board =
             board.size * board.catsPerUnit
 
         conflictCount =
-            board.cells
+            Meowdoku.cells board
                 |> List.filter .hasConflict
                 |> List.length
     in
@@ -323,7 +323,7 @@ viewBoard board =
         , style "background" "rgba(0,0,0,0.05)"
         , style "border-radius" "0.5rem"
         ]
-        (List.map viewCell board.cells)
+        (List.map viewCell (Meowdoku.cells board))
 
 
 viewCell : Cell -> Html Msg
