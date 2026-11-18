@@ -130,7 +130,7 @@ def hint(regions: Grid, board: Grid, cats_per_unit: int) -> dict[str, Any]:
     goal = (
         f"(meowdoku:hint({regions}, {board}, {cats_per_unit}, Dica), Dica =.. [Tipo|Args] -> "
         f"(Tipo == hint -> Args = [R, C, V, M], format('{{\"type\":\"hint\", \"row\":~w, \"col\":~w, \"val\":~w, \"reason\":~q}}~n', [R, C, V, M]) ; "
-        f"format('{{\"type\":~q}}~n', [Tipo])) ; "
+        f"format('{{\"type\":\"~w\"}}~n', [Tipo])) ; "
         f"writeln('NO_SOLUTION'))"
     )
     out = _run_swipl_query(goal)

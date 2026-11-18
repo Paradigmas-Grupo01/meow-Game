@@ -35,7 +35,8 @@ type alias Model =
     , darkTheme : Bool
     , loading : Bool
     , error : Maybe String
-    , hintMessage : Maybe String
+    , hint : Maybe MeowdokuHint
+    , notice : Maybe String
     , playerWon : Bool
     , playerLost : Bool
     , errors : Int
@@ -58,7 +59,8 @@ init flags =
       , darkTheme = flags.darkTheme
       , loading = True
       , error = Nothing
-      , hintMessage = Nothing
+      , hint = Nothing
+      , notice = Nothing
       , playerWon = False
       , playerLost = False
       , errors = 0
@@ -96,23 +98,26 @@ type Msg
     | ErrorDismissed
 
 
+puzzleNames : List String
+puzzleNames =
+    [ "classic_6x6", "lantern_6x6", "classic_8x8", "lantern_8x8", "double_8x8" ]
+
+
 nextPuzzleName : String -> String
 nextPuzzleName current =
-    case current of
-        "classic_6x6" ->
-            "lantern_6x6"
-
-        "lantern_6x6" ->
-            "classic_8x8"
-
-        "classic_8x8" ->
-            "lantern_8x8"
-
-        "lantern_8x8" ->
-            "double_8x8"
-
-        _ ->
-            "classic_6x6"
+    let
+        index =
+            puzzleNames
+                |> List.indexedMap Tuple.pair
+                |> List.filter (\( _, name ) -> name == current)
+                |> List.head
+                |> Maybe.map Tuple.first
+                |> Maybe.withDefault -1
+    in
+    puzzleNames
+        |> List.drop (modBy (List.length puzzleNames) (index + 1))
+        |> List.head
+        |> Maybe.withDefault "classic_6x6"
 
 
 puzzleLabel : String -> String
@@ -144,6 +149,39 @@ countCatsPlaced board =
         |> List.length
 
 
+hintText : MeowdokuHint -> String
+hintText h =
+    let
+        action =
+            if h.value == 1 then
+                "coloque um gato"
+
+            else
+                "marque com X"
+    in
+    "Dica: "
+        ++ action
+        ++ " na linha "
+        ++ String.fromInt (h.row + 1)
+        ++ ", coluna "
+        ++ String.fromInt (h.col + 1)
+        ++ " ("
+        ++ h.reason
+        ++ ")"
+
+
+startRequest : Cmd Msg -> Model -> ( Model, Cmd Msg )
+startRequest cmd model =
+    ( { model
+        | loading = True
+        , error = Nothing
+        , hint = Nothing
+        , notice = Nothing
+      }
+    , cmd
+    )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -158,7 +196,8 @@ update msg model =
                 , puzzleName = puzzle.name
                 , loading = False
                 , error = Nothing
-                , hintMessage = Nothing
+                , hint = Nothing
+                , notice = Nothing
                 , playerWon = False
                 , playerLost = False
                 , errors = 0
@@ -213,7 +252,8 @@ update msg model =
                 in
                 ( { model
                     | board = updatedBoard
-                    , hintMessage = Nothing
+                    , hint = Nothing
+                    , notice = Nothing
                     , error = Nothing
                     , playerWon = completedByPlayer
                   }
@@ -271,7 +311,8 @@ update msg model =
                             | board = updatedBoard
                             , playerWon = completed
                             , completedPuzzles = newCompletedList
-                            , hintMessage = Nothing
+                            , hint = Nothing
+                            , notice = Nothing
                             , error = Nothing
                           }
                         , Cmd.none
@@ -349,7 +390,8 @@ update msg model =
                 ( { model
                     | board = updatedBoard
                     , hasMovedInDrag = True
-                    , hintMessage = Nothing
+                    , hint = Nothing
+                    , notice = Nothing
                     , error = Nothing
                     , playerWon = completedByPlayer
                   }
@@ -363,65 +405,29 @@ update msg model =
             ( { model | isDragging = False, dragStart = Nothing }, Cmd.none )
 
         HintRequested ->
-            ( { model | loading = True, error = Nothing, hintMessage = Nothing }
-            , Api.hintMeowdoku model.regions (Meowdoku.boardToMatrix model.board) model.board.catsPerUnit GotHint
-            )
+            startRequest
+                (Api.hintMeowdoku model.regions (Meowdoku.boardToMatrix model.board) model.board.catsPerUnit GotHint)
+                model
 
-        GotHint (Ok hint) ->
-            ( { model
-                | loading = False
-                , hintMessage =
-                    Just
-                        ("Dica: coloque um gato na linha "
-                            ++ String.fromInt (hint.row + 1)
-                            ++ ", coluna "
-                            ++ String.fromInt (hint.col + 1)
-                            ++ " ("
-                            ++ hint.reason
-                            ++ ")"
-                        )
-              }
-            , Cmd.none
-            )
+        GotHint (Ok h) ->
+            ( { model | loading = False, hint = Just h }, Cmd.none )
 
         GotHint (Err err) ->
             ( { model | loading = False, error = Just err }, Cmd.none )
 
         SolveRequested ->
-            ( { model
-                | loading = True
-                , error = Nothing
-                , hintMessage = Nothing
-                , playerWon = False
-                , playerLost = False
-              }
-            , Api.solveMeowdoku model.regions model.board.catsPerUnit GotSolution
-            )
+            startRequest
+                (Api.solveMeowdoku model.regions model.board.catsPerUnit GotSolution)
+                model
 
         GotSolution (Ok solutionMatrix) ->
-            let
-                applySolution board =
-                    solutionMatrix
-                        |> List.indexedMap
-                            (\r rowList ->
-                                List.indexedMap
-                                    (\c val ->
-                                        if val == 1 then
-                                            ( r, c, HasCat )
-
-                                        else
-                                            ( r, c, MarkedX )
-                                    )
-                                    rowList
-                            )
-                        |> List.concat
-                        |> List.foldl (\( r, c, mark ) acc -> Meowdoku.setMarkAt r c mark acc) board
-            in
             ( { model
-                | board = applySolution model.board
+                | board = Meowdoku.setMarksFromMatrix solutionMatrix model.board
                 , loading = False
                 , playerWon = False
-                , hintMessage =
+                , playerLost = False
+                , hint = Nothing
+                , notice =
                     Just "O Prolog preencheu a solução completa. Para vencer jogando, reinicie a fase."
               }
             , Cmd.none
@@ -438,7 +444,8 @@ update msg model =
             ( { model
                 | loading = True
                 , error = Nothing
-                , hintMessage = Nothing
+                , hint = Nothing
+                , notice = Nothing
                 , playerWon = False
                 , playerLost = False
                 , errors = 0
@@ -450,7 +457,8 @@ update msg model =
             ( { model
                 | loading = True
                 , error = Nothing
-                , hintMessage = Nothing
+                , hint = Nothing
+                , notice = Nothing
                 , playerWon = False
                 , playerLost = False
                 , errors = 0
@@ -462,7 +470,8 @@ update msg model =
         ResetRequested ->
             ( { model
                 | board = Meowdoku.initBoard model.board.size model.board.catsPerUnit model.regions
-                , hintMessage = Nothing
+                , hint = Nothing
+                , notice = Nothing
                 , error = Nothing
                 , playerWon = False
                 , playerLost = False
@@ -481,7 +490,7 @@ update msg model =
             ( { model | showRulesModal = not model.showRulesModal, showLevelSelector = False }, Cmd.none )
 
         ErrorDismissed ->
-            ( { model | error = Nothing, hintMessage = Nothing }, Cmd.none )
+            ( { model | error = Nothing, hint = Nothing, notice = Nothing }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -511,7 +520,7 @@ view model =
         [ viewHeader model
         , main_ [ class "game-main" ]
             [ div [ class "game-board-container" ]
-                [ viewBoard model.board
+                [ viewBoard model.hint model.board
                 , viewBoardControls model
                 ]
             ]
@@ -579,8 +588,8 @@ viewHeader model =
         ]
 
 
-viewBoard : Board -> Html Msg
-viewBoard board =
+viewBoard : Maybe MeowdokuHint -> Board -> Html Msg
+viewBoard maybeHint board =
     div [ class "meowdoku-board-card" ]
         [ div
             [ class "meowdoku-board"
@@ -588,35 +597,54 @@ viewBoard board =
             , style "grid-template-columns" ("repeat(" ++ String.fromInt board.size ++ ", minmax(0, 1fr))")
             , style "gap" "4px"
             ]
-            (List.map viewCell (Meowdoku.cells board))
+            (List.map (viewCell maybeHint) (Meowdoku.cells board))
         ]
 
 
-viewCell : Cell -> Html Msg
-viewCell cell =
+viewCell : Maybe MeowdokuHint -> Cell -> Html Msg
+viewCell maybeHint cell =
+    let
+        isHinted =
+            case maybeHint of
+                Just h ->
+                    h.row == cell.row && h.col == cell.col
+
+                Nothing ->
+                    False
+
+        hintOutline =
+            if isHinted then
+                [ style "outline" "3px solid #f59e0b", style "outline-offset" "-3px", style "z-index" "2" ]
+
+            else
+                []
+    in
     div
-        [ class "meowdoku-cell"
-        , classList
+        ([ class "meowdoku-cell"
+         , classList
             [ ( "cell--conflict", cell.hasConflict )
             , ( "cell--cat", cell.mark == HasCat )
             , ( "cell--blocked", cell.mark == MarkedX )
+            , ( "cell--hint", isHinted )
             , ( "region-" ++ String.fromInt cell.regionId, True )
             ]
-        , onClick (CellClicked cell.row cell.col)
-        , Html.Events.on "dblclick" (Decode.succeed (CellDoubleClicked cell.row cell.col))
-        , Html.Events.on "mousedown" (Decode.succeed (DragStarted cell.row cell.col))
-        , Html.Events.on "mouseenter" (Decode.succeed (DragEntered cell.row cell.col))
-        , Html.Attributes.attribute "draggable" "false"
-        , style "aspect-ratio" "1"
-        , style "display" "flex"
-        , style "align-items" "center"
-        , style "justify-content" "center"
-        , style "cursor" "pointer"
-        , style "border-radius" "8px"
-        , style "user-select" "none"
-        , style "overflow" "hidden"
-        , style "padding" "0"
-        ]
+         , onClick (CellClicked cell.row cell.col)
+         , Html.Events.on "dblclick" (Decode.succeed (CellDoubleClicked cell.row cell.col))
+         , Html.Events.on "mousedown" (Decode.succeed (DragStarted cell.row cell.col))
+         , Html.Events.on "mouseenter" (Decode.succeed (DragEntered cell.row cell.col))
+         , Html.Attributes.attribute "draggable" "false"
+         , style "aspect-ratio" "1"
+         , style "display" "flex"
+         , style "align-items" "center"
+         , style "justify-content" "center"
+         , style "cursor" "pointer"
+         , style "border-radius" "8px"
+         , style "user-select" "none"
+         , style "overflow" "hidden"
+         , style "padding" "0"
+         ]
+            ++ hintOutline
+        )
         [ viewCellContent cell.mark ]
 
 
@@ -648,16 +676,22 @@ viewCellContent mark =
 viewBoardControls : Model -> Html Msg
 viewBoardControls model =
     div [ class "game-controls-bar" ]
-        [ case ( model.error, model.hintMessage ) of
-            ( Just err, _ ) ->
+        [ case ( model.error, model.hint, model.notice ) of
+            ( Just err, _, _ ) ->
                 div [ class "game-feedback game-feedback--error" ]
                     [ span [] [ text err ]
                     , button [ class "feedback-close", onClick ErrorDismissed ] [ text "✕" ]
                     ]
 
-            ( _, Just hint ) ->
+            ( _, Just h, _ ) ->
                 div [ class "game-feedback game-feedback--hint" ]
-                    [ span [] [ text hint ]
+                    [ span [] [ text (hintText h) ]
+                    , button [ class "feedback-close", onClick ErrorDismissed ] [ text "✕" ]
+                    ]
+
+            ( _, _, Just notif ) ->
+                div [ class "game-feedback game-feedback--hint" ]
+                    [ span [] [ text notif ]
                     , button [ class "feedback-close", onClick ErrorDismissed ] [ text "✕" ]
                     ]
 
