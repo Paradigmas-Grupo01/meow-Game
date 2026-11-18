@@ -623,6 +623,24 @@ body {
 
 
 
+.cell--blocked {
+
+    opacity: 0.6;
+
+}
+
+
+
+.cell--blocked .cell-content {
+
+    color: #888197;
+
+    font-size: clamp(16px, 2.5vw, 28px);
+
+}
+
+
+
 .cell--conflict {
 
     background: #ffd5d9 !important;
