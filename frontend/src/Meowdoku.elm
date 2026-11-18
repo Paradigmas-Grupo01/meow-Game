@@ -221,11 +221,15 @@ boardToMatrix board =
                         (\c ->
                             case getCell r c board of
                                 Just cell ->
-                                    if cell.mark == HasCat then
-                                        1
+                                    case cell.mark of
+                                        HasCat ->
+                                            1
 
-                                    else
-                                        0
+                                        MarkedX ->
+                                            -1
+
+                                        Empty ->
+                                            0
 
                                 Nothing ->
                                     0
