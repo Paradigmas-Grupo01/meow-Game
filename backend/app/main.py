@@ -74,6 +74,9 @@ def hint(request: BoardRequest) -> HintResponse:
     return HintResponse(row=row, col=col, value=value)
 
 
+MEOWDOKU_NO_SOLUTION = "Este mapa de territórios não tem solução."
+
+
 class MeowdokuExampleResponse(BaseModel):
     name: str
     size: int
@@ -105,17 +108,22 @@ class MeowdokuHintResponse(BaseModel):
 
 @app.get("/api/meowdoku/example")
 def meowdoku_example(name: str = "classic_6x6") -> MeowdokuExampleResponse:
-    data = meowdoku_prolog.get_example(name)
-    return MeowdokuExampleResponse(**data)
+    try:
+        return MeowdokuExampleResponse(**meowdoku_prolog.get_example(name))
+    except meowdoku_prolog.UnknownExample:
+        available = ", ".join(meowdoku_prolog.list_examples())
+        raise HTTPException(
+            status_code=404, detail=f"Exemplo '{name}' não existe. Disponíveis: {available}."
+        ) from None
 
 
 @app.post("/api/meowdoku/solve")
 def meowdoku_solve(request: MeowdokuSolveRequest) -> MeowdokuSolveResponse:
     try:
-        sol = meowdoku_prolog.solve(request.regions, request.cats_per_unit)
-        return MeowdokuSolveResponse(solution=sol)
-    except meowdoku_prolog.NoSolution as e:
-        raise HTTPException(status_code=422, detail=str(e)) from None
+        solution = meowdoku_prolog.solve(request.regions, request.cats_per_unit)
+    except meowdoku_prolog.NoSolution:
+        raise HTTPException(status_code=400, detail=MEOWDOKU_NO_SOLUTION) from None
+    return MeowdokuSolveResponse(solution=solution)
 
 
 @app.post("/api/meowdoku/hint")
@@ -127,4 +135,3 @@ def meowdoku_hint(request: MeowdokuHintRequest) -> MeowdokuHintResponse:
         raise HTTPException(status_code=422, detail="O tabuleiro ja possui todos os gatos posicionados.") from None
     except meowdoku_prolog.NoSolution:
         raise HTTPException(status_code=422, detail="Nao foi possivel encontrar uma dica para esta configuracao.") from None
-

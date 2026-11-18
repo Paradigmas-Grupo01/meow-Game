@@ -120,3 +120,28 @@ def test_meowdoku_hint_route():
     assert "reason" in hint_data
     assert hint_data["value"] == 1
 
+
+
+def test_meowdoku_example_unknown_name():
+    response = client.get("/api/meowdoku/example?name=nao_existe")
+    assert response.status_code == 404
+    assert "classic_6x6" in response.json()["detail"]
+
+
+def test_meowdoku_solve_respects_cats_per_unit():
+    example = client.get("/api/meowdoku/example?name=double_8x8").json()
+    response = client.post(
+        "/api/meowdoku/solve",
+        json={"regions": example["regions"], "cats_per_unit": example["cats_per_unit"]},
+    )
+    assert response.status_code == 200
+    solution = response.json()["solution"]
+    assert all(sum(row) == 2 for row in solution)
+    assert all(sum(col) == 2 for col in zip(*solution))
+
+
+def test_meowdoku_solve_without_solution():
+    response = client.post(
+        "/api/meowdoku/solve", json={"regions": [[0, 0], [0, 0]], "cats_per_unit": 1}
+    )
+    assert response.status_code == 400
