@@ -244,7 +244,7 @@ Caso o grupo tivesse mais semanas para trabalhar no projeto, a prioridade seria 
 
 | Integrante | Principais contribuições |
 |---|---|
-| Gabriel Santos Monteiro | Modelou as restrições em CLP(FD) no arquivo `meowdoku.pl`, implementou o suporte ao modo K=2, escreveu os 14 testes automatizados em plunit e fechou as Issues #1 e #8. |
+| Gabriel Santos Monteiro | Organizou as issues do grupo, escreveu o backlog, modelou as restrições em CLP(FD) no arquivo `meowdoku.pl`, implementou o suporte ao modo K=2, escreveu os 14 testes automatizados em plunit e fechou as Issues #1 e #8. |
 | Ana Luíza Fernandes | Implementou a lógica dedutiva do predicado de dicas `hint/4` com justificativas textuais e pesquisou o algoritmo de partição conexa de regiões nas Issues #2 e #9. |
 | Cayo Alencar | Estruturou a integração entre FastAPI e SWI-Prolog usando Janus, configurou os modelos Pydantic, desenvolveu as rotas REST e escreveu os testes com pytest nas Issues #3 e #10. |
 | Tales R. G. | Desenvolveu o módulo de domínio em Elm (`Meowdoku.elm`), definindo os tipos de dados imutáveis, a máquina de estados das células e o algoritmo funcional de conflitos nas Issues #4 e #11. |
