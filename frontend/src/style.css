@@ -28,7 +28,7 @@
 
     /* CORES DE ALTO CONTRASTE DAS REGIOES (MODO CLARO) */
     --region-0: #fef08a; /* Amarelo Canário */
-    --region-0-border: #ca8a04;
+    --region-0-border: #eab308;
 
     --region-1: #bae6fd; /* Azul Celeste */
     --region-1-border: #0284c7;
@@ -76,35 +76,35 @@ body.dark-theme,
     --accent-peach-text: #fbcfe8;
     --danger: #f87171;
 
-    /* CORES DE ALTO CONTRASTE DAS REGIOES (MODO ESCURO) */
-    --region-0: #78350f; /* Amarelo Âmbar Escuro */
-    --region-0-border: #facc15;
+    /* CORES DE ALTO CONTRASTE DAS REGIOES (MODO ESCURO - CORES VIBRANTES E DISTINTAS) */
+    --region-0: #a16207; /* Amarelo Ouro / Mostarda */
+    --region-0-border: #fde047;
 
-    --region-1: #075985; /* Azul Oceano */
+    --region-1: #0369a1; /* Azul Cobalto */
     --region-1-border: #38bdf8;
 
-    --region-2: #14532d; /* Verde Floresta */
+    --region-2: #15803d; /* Verde Esmeralda */
     --region-2-border: #4ade80;
 
-    --region-3: #7c2d12; /* Laranja Queimado */
-    --region-3-border: #fb923c;
+    --region-3: #b91c1c; /* Vermelho Carmesim Intenso (contrasta com amarelo) */
+    --region-3-border: #f87171;
 
-    --region-4: #581c87; /* Violeta Escuro */
+    --region-4: #7e22ce; /* Violeta Real */
     --region-4-border: #c084fc;
 
-    --region-5: #831843; /* Magenta Escuro */
+    --region-5: #be185d; /* Rosa Fúcsia */
     --region-5-border: #f472b6;
 
-    --region-6: #1e1b4b; /* Azul Profundo */
+    --region-6: #3730a3; /* Azul Meia-noite */
     --region-6-border: #818cf8;
 
-    --region-7: #134e4a; /* Ciano Petróleo */
+    --region-7: #0f766e; /* Turquesa Petróleo */
     --region-7-border: #2dd4bf;
 
-    --region-8: #4c1d95; /* Roxo Imperial */
-    --region-8-border: #a78bfa;
+    --region-8: #c2410c; /* Laranja Abóbora */
+    --region-8-border: #fb923c;
 
-    --region-9: #334155; /* Grafite */
+    --region-9: #475569; /* Ardósia */
     --region-9-border: #94a3b8;
 }
 
@@ -334,10 +334,15 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    border: 1.5px solid rgba(0, 0, 0, 0.12);
+    border: 2px solid rgba(0, 0, 0, 0.15);
     cursor: pointer;
     overflow: hidden;
     transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.dark-theme .meowdoku-cell {
+    border-width: 2.5px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
 .meowdoku-cell:hover {
