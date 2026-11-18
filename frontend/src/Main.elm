@@ -2,10 +2,15 @@ module Main exposing (main)
 
 import Api exposing (MeowdokuHint, MeowdokuPuzzle)
 import Browser
-import Html exposing (Html, aside, button, div, footer, h1, h2, header, input, label, main_, span, text)
-import Html.Attributes exposing (checked, class, classList, disabled, style, type_)
-import Html.Events exposing (onCheck, onClick)
+import Browser.Events
+import Html exposing (Html, button, div, h2, header, main_, span, text)
+import Html.Attributes exposing (class, classList, style)
+import Html.Events exposing (onClick)
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Meowdoku exposing (Board, Cell, CellMark(..))
+import Svg exposing (Svg)
+import Svg.Attributes as SvgAttr
 
 
 main : Program Flags Model Msg
@@ -33,7 +38,64 @@ type alias Model =
     , hint : Maybe MeowdokuHint
     , notice : Maybe String
     , playerWon : Bool
+    , playerLost : Bool
+    , errors : Int
+    , solution : Maybe (List (List Int))
+    , isDragging : Bool
+    , dragStart : Maybe ( Int, Int )
+    , dragMark : CellMark
+    , hasMovedInDrag : Bool
+    , showLevelSelector : Bool
+    , showRulesModal : Bool
+    , completedPuzzles : List String
     }
+
+
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    ( { board = Meowdoku.initBoard 6 1 []
+      , regions = []
+      , puzzleName = "classic_6x6"
+      , darkTheme = flags.darkTheme
+      , loading = True
+      , error = Nothing
+      , hint = Nothing
+      , notice = Nothing
+      , playerWon = False
+      , playerLost = False
+      , errors = 0
+      , solution = Nothing
+      , isDragging = False
+      , dragStart = Nothing
+      , dragMark = Empty
+      , hasMovedInDrag = False
+      , showLevelSelector = False
+      , showRulesModal = False
+      , completedPuzzles = []
+      }
+    , Api.fetchMeowdokuExample "classic_6x6" GotPuzzle
+    )
+
+
+type Msg
+    = GotPuzzle (Result String MeowdokuPuzzle)
+    | GotHiddenSolution (Result String (List (List Int)))
+    | CellClicked Int Int
+    | CellDoubleClicked Int Int
+    | DragStarted Int Int
+    | DragEntered Int Int
+    | DragEnded
+    | HintRequested
+    | GotHint (Result String MeowdokuHint)
+    | SolveRequested
+    | GotSolution (Result String (List (List Int)))
+    | ResetRequested
+    | NewGameRequested
+    | SelectPuzzle String
+    | ThemeToggled Bool
+    | ToggleLevelSelector
+    | ToggleRulesModal
+    | ErrorDismissed
 
 
 puzzleNames : List String
@@ -58,53 +120,71 @@ nextPuzzleName current =
         |> Maybe.withDefault "classic_6x6"
 
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
-    ( { board = Meowdoku.initBoard 6 1 []
-      , regions = []
-      , puzzleName = "classic_6x6"
-      , darkTheme = flags.darkTheme
-      , loading = True
-      , error = Nothing
-      , hint = Nothing
-      , notice = Nothing
-      , playerWon = False
+puzzleLabel : String -> String
+puzzleLabel name =
+    case name of
+        "classic_6x6" ->
+            "Fase 1: 6x6 Clássico"
+
+        "lantern_6x6" ->
+            "Fase 2: 6x6 Lanterna"
+
+        "classic_8x8" ->
+            "Fase 3: 8x8 Clássico"
+
+        "lantern_8x8" ->
+            "Fase 4: 8x8 Lanterna"
+
+        "double_8x8" ->
+            "Fase 5: 8x8 Modo 2 Gatos"
+
+        _ ->
+            name
+
+
+countCatsPlaced : Board -> Int
+countCatsPlaced board =
+    Meowdoku.cells board
+        |> List.filter (\c -> c.mark == HasCat)
+        |> List.length
+
+
+hintText : MeowdokuHint -> String
+hintText h =
+    let
+        action =
+            if h.value == 1 then
+                "coloque um gato"
+
+            else
+                "marque com X"
+    in
+    "Dica: "
+        ++ action
+        ++ " na linha "
+        ++ String.fromInt (h.row + 1)
+        ++ ", coluna "
+        ++ String.fromInt (h.col + 1)
+        ++ " ("
+        ++ h.reason
+        ++ ")"
+
+
+startRequest : Cmd Msg -> Model -> ( Model, Cmd Msg )
+startRequest cmd model =
+    ( { model
+        | loading = True
+        , error = Nothing
+        , hint = Nothing
+        , notice = Nothing
       }
-    , Api.fetchMeowdokuExample "classic_6x6" GotPuzzle
+    , cmd
     )
-
-
-type Msg
-    = NewGameRequested String
-    | GotPuzzle (Result String MeowdokuPuzzle)
-    | CellClicked Int Int
-    | HintRequested
-    | GotHint (Result String MeowdokuHint)
-    | SolveRequested
-    | GotSolution (Result String (List (List Int)))
-    | ResetRequested
-    | ThemeToggled Bool
-    | ErrorDismissed
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NewGameRequested name ->
-            if model.loading then
-                ( model, Cmd.none )
-
-            else
-                ( { model
-                    | loading = True
-                    , error = Nothing
-                    , hint = Nothing
-                    , notice = Nothing
-                    , playerWon = False
-                  }
-                , Api.fetchMeowdokuExample name GotPuzzle
-                )
-
         GotPuzzle (Ok puzzle) ->
             let
                 newBoard =
@@ -119,38 +199,218 @@ update msg model =
                 , hint = Nothing
                 , notice = Nothing
                 , playerWon = False
+                , playerLost = False
+                , errors = 0
+                , solution = Nothing
+                , showLevelSelector = False
               }
-            , Cmd.none
+            , Api.solveMeowdoku puzzle.regions puzzle.catsPerUnit GotHiddenSolution
             )
 
         GotPuzzle (Err err) ->
             ( { model | loading = False, error = Just err }, Cmd.none )
 
-        CellClicked r c ->
-            let
-                updatedBoard =
-                    Meowdoku.cycleMarkAt r c model.board
+        GotHiddenSolution (Ok sol) ->
+            ( { model | solution = Just sol }, Cmd.none )
 
-                completedByPlayer =
-                    Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+        GotHiddenSolution (Err _) ->
+            ( model, Cmd.none )
+
+        CellClicked r c ->
+            if model.playerWon || model.playerLost then
+                ( model, Cmd.none )
+
+            else if model.hasMovedInDrag then
+                ( { model | hasMovedInDrag = False }, Cmd.none )
+
+            else
+                let
+                    currentMark =
+                        case Meowdoku.getCell r c model.board of
+                            Just cell ->
+                                cell.mark
+
+                            Nothing ->
+                                Empty
+
+                    newMark =
+                        case currentMark of
+                            Empty ->
+                                MarkedX
+
+                            MarkedX ->
+                                Empty
+
+                            HasCat ->
+                                Empty
+
+                    updatedBoard =
+                        Meowdoku.setMarkAt r c newMark model.board
+
+                    completedByPlayer =
+                        Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+                in
+                ( { model
+                    | board = updatedBoard
+                    , hint = Nothing
+                    , notice = Nothing
+                    , error = Nothing
+                    , playerWon = completedByPlayer
+                  }
+                , Cmd.none
+                )
+
+        CellDoubleClicked r c ->
+            if model.playerWon || model.playerLost then
+                ( model, Cmd.none )
+
+            else
+                let
+                    currentMark =
+                        case Meowdoku.getCell r c model.board of
+                            Just cell ->
+                                cell.mark
+
+                            Nothing ->
+                                Empty
+                in
+                if currentMark == HasCat then
+                    ( model, Cmd.none )
+
+                else
+                    let
+                        isCorrect =
+                            case model.solution of
+                                Just sol ->
+                                    sol
+                                        |> List.drop r
+                                        |> List.head
+                                        |> Maybe.andThen (List.drop c >> List.head)
+                                        |> Maybe.map (\val -> val == 1)
+                                        |> Maybe.withDefault False
+
+                                Nothing ->
+                                    True
+                    in
+                    if isCorrect then
+                        let
+                            updatedBoard =
+                                Meowdoku.setMarkAt r c HasCat model.board
+
+                            completed =
+                                Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+
+                            newCompletedList =
+                                if completed && not (List.member model.puzzleName model.completedPuzzles) then
+                                    model.puzzleName :: model.completedPuzzles
+
+                                else
+                                    model.completedPuzzles
+                        in
+                        ( { model
+                            | board = updatedBoard
+                            , playerWon = completed
+                            , completedPuzzles = newCompletedList
+                            , hint = Nothing
+                            , notice = Nothing
+                            , error = Nothing
+                          }
+                        , Cmd.none
+                        )
+
+                    else
+                        let
+                            newErrors =
+                                model.errors + 1
+
+                            lost =
+                                newErrors >= 3
+
+                            updatedBoard =
+                                Meowdoku.setMarkAt r c MarkedX model.board
+                        in
+                        ( { model
+                            | board = updatedBoard
+                            , errors = newErrors
+                            , playerLost = lost
+                            , error =
+                                if lost then
+                                    Nothing
+
+                                else
+                                    Just ("Posição incorreta! Erro " ++ String.fromInt newErrors ++ " de 3.")
+                          }
+                        , Cmd.none
+                        )
+
+        DragStarted r c ->
+            let
+                currentMark =
+                    case Meowdoku.getCell r c model.board of
+                        Just cell ->
+                            cell.mark
+
+                        Nothing ->
+                            Empty
+
+                chosenDragMark =
+                    case currentMark of
+                        Empty ->
+                            MarkedX
+
+                        _ ->
+                            Empty
             in
             ( { model
-                | board = updatedBoard
-                , hint = Nothing
-                , notice = Nothing
-                , error = Nothing
-                , playerWon = completedByPlayer
+                | isDragging = True
+                , dragStart = Just ( r, c )
+                , dragMark = chosenDragMark
+                , hasMovedInDrag = False
               }
             , Cmd.none
             )
+
+        DragEntered r c ->
+            if model.isDragging then
+                let
+                    intermediateBoard =
+                        case ( model.hasMovedInDrag, model.dragStart ) of
+                            ( False, Just ( startR, startC ) ) ->
+                                Meowdoku.setMarkAt startR startC model.dragMark model.board
+
+                            _ ->
+                                model.board
+
+                    updatedBoard =
+                        Meowdoku.setMarkAt r c model.dragMark intermediateBoard
+
+                    completedByPlayer =
+                        Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+                in
+                ( { model
+                    | board = updatedBoard
+                    , hasMovedInDrag = True
+                    , hint = Nothing
+                    , notice = Nothing
+                    , error = Nothing
+                    , playerWon = completedByPlayer
+                  }
+                , Cmd.none
+                )
+
+            else
+                ( model, Cmd.none )
+
+        DragEnded ->
+            ( { model | isDragging = False, dragStart = Nothing }, Cmd.none )
 
         HintRequested ->
             startRequest
                 (Api.hintMeowdoku model.regions (Meowdoku.boardToMatrix model.board) model.board.catsPerUnit GotHint)
                 model
 
-        GotHint (Ok hint) ->
-            ( { model | loading = False, hint = Just hint }, Cmd.none )
+        GotHint (Ok h) ->
+            ( { model | loading = False, hint = Just h }, Cmd.none )
 
         GotHint (Err err) ->
             ( { model | loading = False, error = Just err }, Cmd.none )
@@ -165,15 +425,47 @@ update msg model =
                 | board = Meowdoku.setMarksFromMatrix solutionMatrix model.board
                 , loading = False
                 , playerWon = False
+                , playerLost = False
                 , hint = Nothing
                 , notice =
-                    Just "O Prolog encontrou uma solução válida e preencheu o tabuleiro. Para vencer jogando, limpe o tabuleiro e complete as casas manualmente."
+                    Just "O Prolog preencheu a solução completa. Para vencer jogando, reinicie a fase."
               }
             , Cmd.none
             )
 
         GotSolution (Err err) ->
             ( { model | loading = False, error = Just err }, Cmd.none )
+
+        NewGameRequested ->
+            let
+                next =
+                    nextPuzzleName model.puzzleName
+            in
+            ( { model
+                | loading = True
+                , error = Nothing
+                , hint = Nothing
+                , notice = Nothing
+                , playerWon = False
+                , playerLost = False
+                , errors = 0
+              }
+            , Api.fetchMeowdokuExample next GotPuzzle
+            )
+
+        SelectPuzzle name ->
+            ( { model
+                | loading = True
+                , error = Nothing
+                , hint = Nothing
+                , notice = Nothing
+                , playerWon = False
+                , playerLost = False
+                , errors = 0
+                , showLevelSelector = False
+              }
+            , Api.fetchMeowdokuExample name GotPuzzle
+            )
 
         ResetRequested ->
             ( { model
@@ -182,6 +474,8 @@ update msg model =
                 , notice = Nothing
                 , error = Nothing
                 , playerWon = False
+                , playerLost = False
+                , errors = 0
               }
             , Cmd.none
             )
@@ -189,198 +483,138 @@ update msg model =
         ThemeToggled dark ->
             ( { model | darkTheme = dark }, Cmd.none )
 
+        ToggleLevelSelector ->
+            ( { model | showLevelSelector = not model.showLevelSelector, showRulesModal = False }, Cmd.none )
+
+        ToggleRulesModal ->
+            ( { model | showRulesModal = not model.showRulesModal, showLevelSelector = False }, Cmd.none )
+
         ErrorDismissed ->
-            ( { model | error = Nothing }, Cmd.none )
-
-
-startRequest : Cmd Msg -> Model -> ( Model, Cmd Msg )
-startRequest request model =
-    if model.loading then
-        ( model, Cmd.none )
-
-    else if List.isEmpty model.regions then
-        ( { model | error = Just "Nenhum tabuleiro carregado. Use Novo Jogo para tentar novamente." }
-        , Cmd.none
-        )
-
-    else
-        ( { model | loading = True, error = Nothing, hint = Nothing, notice = Nothing }
-        , request
-        )
-
-
-hintText : MeowdokuHint -> String
-hintText hint =
-    let
-        position =
-            "linha " ++ String.fromInt (hint.row + 1) ++ ", coluna " ++ String.fromInt (hint.col + 1)
-
-        action =
-            if hint.value == 1 then
-                "Dica: coloque um gato na "
-
-            else
-                "Dica: remova o gato da "
-    in
-    action ++ position ++ " (" ++ hint.reason ++ ")"
+            ( { model | error = Nothing, hint = Nothing, notice = Nothing }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    if model.isDragging then
+        Browser.Events.onMouseUp (Decode.succeed DragEnded)
+
+    else
+        Sub.none
 
 
 view : Model -> Html Msg
 view model =
     div
         [ classList
-            [ ( "app", True )
+            [ ( "game-app", True )
             , ( "dark-theme", model.darkTheme )
             ]
+        , Html.Attributes.attribute "data-theme"
+            (if model.darkTheme then
+                "dark"
+
+             else
+                "light"
+            )
         ]
-        [ header [ class "app-header" ]
-            [ div [ class "app-container app-header-content" ]
-                [ div [ class "brand" ]
-                    [ div [ class "brand-icon" ] [ text "M" ]
-                    , div []
-                        [ h1 [ class "app-title" ] [ text "Meowdoku" ]
-                        , span [ class "app-subtitle" ]
-                            [ text "O desafio das regiões felinas" ]
-                        ]
+        [ viewHeader model
+        , main_ [ class "game-main" ]
+            [ div [ class "game-board-container" ]
+                [ viewBoard model.hint model.board
+                , viewBoardControls model
+                ]
+            ]
+        , viewVictoryModal model
+        , viewDefeatModal model
+        , viewLevelSelectorModal model
+        , viewRulesModal model
+        ]
+
+
+viewHeader : Model -> Html Msg
+viewHeader model =
+    header [ class "game-header" ]
+        [ div [ class "header-inner" ]
+            [ div [ class "header-left" ]
+                [ div [ class "pill-badge pill-badge--cat" ]
+                    [ viewCatIcon
+                    , span [ class "pill-text" ]
+                        [ text (String.fromInt (countCatsPlaced model.board) ++ "/" ++ String.fromInt (model.board.size * model.board.catsPerUnit)) ]
                     ]
+                , div [ class "pill-badge pill-badge--lives" ]
+                    [ viewHeartIcon (model.errors < 1)
+                    , viewHeartIcon (model.errors < 2)
+                    , viewHeartIcon (model.errors < 3)
+                    , span [ class "pill-text" ] [ text ("Erros: " ++ String.fromInt model.errors ++ "/3") ]
+                    ]
+                ]
+            , div [ class "header-center" ]
+                [ div [ class "difficulty-eyebrow" ]
+                    [ text
+                        (if model.board.catsPerUnit > 1 then
+                            "MODO ULTRA (K=2)"
+
+                         else
+                            "DIFICULDADE"
+                        )
+                    ]
+                , div [ class "difficulty-selector" ]
+                    [ button
+                        [ class "pill-tab"
+                        , classList [ ( "pill-tab--active", model.board.catsPerUnit == 1 ) ]
+                        , onClick (SelectPuzzle "classic_6x6")
+                        ]
+                        [ text "NORMAL" ]
+                    , button
+                        [ class "pill-tab"
+                        , classList [ ( "pill-tab--active", model.board.catsPerUnit > 1 ) ]
+                        , onClick (SelectPuzzle "double_8x8")
+                        ]
+                        [ text "ULTRA" ]
+                    ]
+                ]
+            , div [ class "header-right" ]
+                [ button [ class "icon-btn", onClick ToggleLevelSelector, Html.Attributes.attribute "title" "Selecionar Fases" ]
+                    [ viewLevelsGridIcon ]
+                , button [ class "icon-btn", onClick HintRequested, Html.Attributes.attribute "title" "Pedir Dica" ]
+                    [ viewLightbulbIcon ]
+                , button [ class "icon-btn", onClick ResetRequested, Html.Attributes.attribute "title" "Reiniciar Tabuleiro" ]
+                    [ viewRestartIcon ]
+                , button [ class "icon-btn", onClick ToggleRulesModal, Html.Attributes.attribute "title" "Como Jogar" ]
+                    [ viewHelpIcon ]
                 , viewThemeToggle model
                 ]
             ]
-        , main_ [ class "app-main" ]
-            [ div [ class "app-container game" ]
-                [ viewBoard model.hint model.board
-                , aside [ class "side-panel" ]
-                    [ div [ class "panel-heading" ]
-                        [ span [ class "eyebrow" ] [ text "PAINEL DO JOGO" ]
-                        , h2 [] [ text "Sua partida" ]
-                        ]
-                    , div [ class "message-area" ] [ viewMessages model ]
-                    , viewStats model.puzzleName model.board
-                    , viewInstructions
-                    , div [ class "controls-section" ]
-                        [ span [ class "section-label" ] [ text "CONTROLES" ]
-                        , button [ class "btn btn-hint", disabled model.loading, onClick HintRequested ] [ text "Pedir Dica" ]
-                        , button [ class "btn btn-solve", disabled model.loading, onClick SolveRequested ] [ text "Resolver com Prolog" ]
-                        , button [ class "btn btn-reset", disabled model.loading, onClick ResetRequested ] [ text "Limpar Tabuleiro" ]
-                        , button [ class "btn btn-reset", disabled model.loading, onClick (NewGameRequested (nextPuzzleName model.puzzleName)) ] [ text "Novo Jogo" ]
-                        ]
-                    ]
-                ]
-            ]
-        , footer [ class "app-footer" ]
-            [ text "Clique nas células para alternar entre Vazio, X e Gato." ]
-        ]
-
-
-viewInstructions : Html Msg
-viewInstructions =
-    div [ class "instructions" ]
-        [ div [ class "instructions-heading" ]
-            [ span [ class "eyebrow" ] [ text "ENTENDA O DESAFIO" ]
-            , h2 [] [ text "Como jogar?" ]
-            ]
-        , div [ class "instructions-intro" ]
-            [ text "Seu objetivo é posicionar os gatos sem desrespeitar as regras do tabuleiro." ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "1" ]
-            , span [] [ text "Coloque exatamente um gato em cada linha." ]
-            ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "2" ]
-            , span [] [ text "Coloque exatamente um gato em cada coluna." ]
-            ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "3" ]
-            , span [] [ text "Cada região colorida deve conter exatamente um gato." ]
-            ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "4" ]
-            , span [] [ text "Dois gatos não podem ficar em células vizinhas, nem na diagonal." ]
-            ]
-        , div [ class "instructions-tools" ]
-            [ h2 [] [ text "Ferramentas do jogo" ]
-            , pLike "Pedir Dica: solicita ao sistema uma sugestão de posição para ajudar você a continuar."
-            , pLike "Resolver com Prolog: usa o mecanismo lógico Prolog para buscar uma solução completa do desafio."
-            , pLike "Vitória: acontece quando o tabuleiro está completo e todas as regras são respeitadas."
-            ]
-        ]
-
-
-pLike : String -> Html Msg
-pLike content =
-    div [] [ text content ]
-
-
-viewStats : String -> Board -> Html Msg
-viewStats puzzleName board =
-    let
-        totalPlaced =
-            Meowdoku.cells board
-                |> List.filter (\c -> c.mark == HasCat)
-                |> List.length
-
-        totalExpected =
-            board.size * board.catsPerUnit
-
-        conflictCount =
-            Meowdoku.cells board
-                |> List.filter .hasConflict
-                |> List.length
-    in
-    div
-        [ class "stats-box"
-        , style "padding" "0.75rem"
-        , style "border-radius" "0.5rem"
-        , style "background" "rgba(0,0,0,0.04)"
-        , style "display" "flex"
-        , style "flex-direction" "column"
-        , style "gap" "0.25rem"
-        ]
-        [ span [] [ text ("Mapa: " ++ puzzleName) ]
-        , span [] [ text ("Gatos colocados: " ++ String.fromInt totalPlaced ++ " / " ++ String.fromInt totalExpected) ]
-        , span [] [ text ("Meta por linha/coluna/região: " ++ String.fromInt board.catsPerUnit) ]
-        , if conflictCount > 0 then
-            span [ style "color" "#ef4444", style "font-weight" "bold" ]
-                [ text ("Conflitos ativos: " ++ String.fromInt conflictCount) ]
-
-          else
-            text ""
         ]
 
 
 viewBoard : Maybe MeowdokuHint -> Board -> Html Msg
-viewBoard hint board =
-    div
-        [ class "meowdoku-board"
-        , style "display" "grid"
-        , style "grid-template-columns" ("repeat(" ++ String.fromInt board.size ++ ", minmax(0, 1fr))")
-        , style "gap" "4px"
-        , style "padding" "1rem"
-        , style "background" "rgba(0,0,0,0.05)"
-        , style "border-radius" "0.5rem"
+viewBoard maybeHint board =
+    div [ class "meowdoku-board-card" ]
+        [ div
+            [ class "meowdoku-board"
+            , style "display" "grid"
+            , style "grid-template-columns" ("repeat(" ++ String.fromInt board.size ++ ", minmax(0, 1fr))")
+            , style "gap" "4px"
+            ]
+            (List.map (viewCell maybeHint) (Meowdoku.cells board))
         ]
-        (List.map (viewCell hint) (Meowdoku.cells board))
 
 
 viewCell : Maybe MeowdokuHint -> Cell -> Html Msg
-viewCell hint cell =
+viewCell maybeHint cell =
     let
         isHinted =
-            case hint of
+            case maybeHint of
                 Just h ->
                     h.row == cell.row && h.col == cell.col
 
                 Nothing ->
                     False
 
-        hintStyle =
+        hintOutline =
             if isHinted then
-                [ style "outline" "3px solid #f59e0b", style "outline-offset" "-3px" ]
+                [ style "outline" "3px solid #f59e0b", style "outline-offset" "-3px", style "z-index" "2" ]
 
             else
                 []
@@ -395,71 +629,426 @@ viewCell hint cell =
             , ( "region-" ++ String.fromInt cell.regionId, True )
             ]
          , onClick (CellClicked cell.row cell.col)
+         , Html.Events.on "dblclick" (Decode.succeed (CellDoubleClicked cell.row cell.col))
+         , Html.Events.on "mousedown" (Decode.succeed (DragStarted cell.row cell.col))
+         , Html.Events.on "mouseenter" (Decode.succeed (DragEntered cell.row cell.col))
+         , Html.Attributes.attribute "draggable" "false"
          , style "aspect-ratio" "1"
          , style "display" "flex"
          , style "align-items" "center"
          , style "justify-content" "center"
-         , style "font-size" "1.8rem"
          , style "cursor" "pointer"
-         , style "border-radius" "0.375rem"
+         , style "border-radius" "8px"
          , style "user-select" "none"
-         , style "border" "1px solid rgba(0,0,0,0.15)"
+         , style "overflow" "hidden"
+         , style "padding" "0"
          ]
-            ++ hintStyle
+            ++ hintOutline
         )
-        [ span [ class "cell-content" ] [ text (Meowdoku.markToString cell.mark) ] ]
+        [ viewCellContent cell.mark ]
 
 
-viewMessages : Model -> Html Msg
-viewMessages model =
-    case ( model.error, model.loading ) of
-        ( Just err, _ ) ->
-            div [ class "message message--error" ]
-                [ span [] [ text err ]
-                , button [ class "message-close", onClick ErrorDismissed ] [ text "✕" ]
+viewCellContent : CellMark -> Html Msg
+viewCellContent mark =
+    case mark of
+        Empty ->
+            text ""
+
+        MarkedX ->
+            span [ class "cell-mark-x" ] [ text "✕" ]
+
+        HasCat ->
+            Html.node "video"
+                [ Html.Attributes.attribute "src" "/pinguim.mp4"
+                , Html.Attributes.attribute "autoplay" ""
+                , Html.Attributes.attribute "muted" ""
+                , Html.Attributes.attribute "playsinline" ""
+                , Html.Attributes.property "muted" (Encode.bool True)
+                , style "width" "100%"
+                , style "height" "100%"
+                , style "object-fit" "cover"
+                , style "pointer-events" "none"
+                , style "display" "block"
                 ]
+                []
 
-        ( _, True ) ->
-            div [ class "message message--loading" ] [ text "Carregando..." ]
 
-        _ ->
-            case ( model.hint, model.notice ) of
-                ( Just hint, _ ) ->
-                    div [ class "message message--hint" ] [ text (hintText hint) ]
+viewBoardControls : Model -> Html Msg
+viewBoardControls model =
+    div [ class "game-controls-bar" ]
+        [ case ( model.error, model.hint, model.notice ) of
+            ( Just err, _, _ ) ->
+                div [ class "game-feedback game-feedback--error" ]
+                    [ span [] [ text err ]
+                    , button [ class "feedback-close", onClick ErrorDismissed ] [ text "✕" ]
+                    ]
 
-                ( _, Just notice ) ->
-                    div [ class "message message--hint" ] [ text notice ]
+            ( _, Just h, _ ) ->
+                div [ class "game-feedback game-feedback--hint" ]
+                    [ span [] [ text (hintText h) ]
+                    , button [ class "feedback-close", onClick ErrorDismissed ] [ text "✕" ]
+                    ]
 
-                _ ->
-                    if model.playerWon then
-                        div [ class "message message--success" ]
-                            [ div []
-                                [ h2 [] [ text "Parabéns! Você venceu!" ]
-                                , span [] [ text "Você completou o desafio respeitando todas as regras. Que tal jogar novamente?" ]
-                                ]
-                            ]
+            ( _, _, Just notif ) ->
+                div [ class "game-feedback game-feedback--hint" ]
+                    [ span [] [ text notif ]
+                    , button [ class "feedback-close", onClick ErrorDismissed ] [ text "✕" ]
+                    ]
 
-                    else
-                        text ""
+            _ ->
+                text ""
+        , div [ class "quick-actions-row" ]
+            [ button [ class "btn-quick btn-quick--hint", onClick HintRequested ]
+                [ viewLightbulbIconSmall, span [] [ text "Pedir Dica" ] ]
+            , button [ class "btn-quick btn-quick--solve", onClick SolveRequested ]
+                [ text "Resolver com Prolog" ]
+            ]
+        ]
+
+
+viewVictoryModal : Model -> Html Msg
+viewVictoryModal model =
+    if model.playerWon then
+        div [ class "modal-overlay" ]
+            [ div [ class "modal-card" ]
+                [ div [ class "modal-eyebrow" ] [ text "LEVEL COMPLETE" ]
+                , h2 [ class "modal-title" ] [ text (puzzleLabel model.puzzleName ++ " vencida.") ]
+                , div [ class "modal-subtitle" ]
+                    [ text
+                        (if model.board.catsPerUnit > 1 then
+                            "Cada linha, coluna e região possui exatamente 2 gatos sem se tocar."
+
+                         else
+                            "Cada linha, coluna e região possui exatamente um gato."
+                        )
+                    ]
+                , div [ class "modal-badge" ]
+                    [ text
+                        (if model.errors == 0 then
+                            "Perfeito! Concluído com 0 erros"
+
+                         else
+                            "Concluído com " ++ String.fromInt model.errors ++ " erro(s)"
+                        )
+                    ]
+                , div [ class "modal-actions" ]
+                    [ button [ class "modal-btn modal-btn--primary", onClick NewGameRequested ]
+                        [ text "Próxima Fase" ]
+                    , button [ class "modal-btn modal-btn--secondary", onClick ResetRequested ]
+                        [ text "Jogar Novamente" ]
+                    ]
+                ]
+            ]
+
+    else
+        text ""
+
+
+viewDefeatModal : Model -> Html Msg
+viewDefeatModal model =
+    if model.playerLost then
+        div [ class "modal-overlay" ]
+            [ div [ class "modal-card modal-card--defeat" ]
+                [ div [ class "modal-eyebrow modal-eyebrow--defeat" ] [ text "FIM DE JOGO" ]
+                , h2 [ class "modal-title" ] [ text "Você cometeu 3 erros." ]
+                , div [ class "modal-subtitle" ]
+                    [ text "Analise as regiões e use o clique simples para marcar com X as casas eliminadas antes de posicionar um gato." ]
+                , div [ class "modal-actions" ]
+                    [ button [ class "modal-btn modal-btn--primary", onClick ResetRequested ]
+                        [ text "Tentar Novamente" ]
+                    , button [ class "modal-btn modal-btn--secondary", onClick ToggleLevelSelector ]
+                        [ text "Escolher Outra Fase" ]
+                    ]
+                ]
+            ]
+
+    else
+        text ""
+
+
+viewLevelSelectorModal : Model -> Html Msg
+viewLevelSelectorModal model =
+    if model.showLevelSelector then
+        div [ class "modal-overlay" ]
+            [ div [ class "modal-card modal-card--levels" ]
+                [ div [ class "levels-header" ]
+                    [ h2 [ class "modal-title", style "margin" "0" ] [ text "Fases do Jogo" ]
+                    , button [ class "icon-btn icon-btn--close", onClick ToggleLevelSelector ] [ text "✕" ]
+                    ]
+                , div [ class "levels-grid" ]
+                    [ viewLevelCard model "classic_6x6" "1" "6x6 Clássico" "Normal"
+                    , viewLevelCard model "lantern_6x6" "2" "6x6 Lanterna" "Normal"
+                    , viewLevelCard model "classic_8x8" "3" "8x8 Clássico" "Normal"
+                    , viewLevelCard model "lantern_8x8" "4" "8x8 Lanterna" "Normal"
+                    , viewLevelCard model "double_8x8" "5" "8x8 2 Gatos" "Ultra (K=2)"
+                    ]
+                ]
+            ]
+
+    else
+        text ""
+
+
+viewLevelCard : Model -> String -> String -> String -> String -> Html Msg
+viewLevelCard model id num label diff =
+    let
+        isActive =
+            model.puzzleName == id
+
+        isCompleted =
+            List.member id model.completedPuzzles
+    in
+    button
+        [ class "level-card"
+        , classList [ ( "level-card--active", isActive ) ]
+        , onClick (SelectPuzzle id)
+        ]
+        [ div [ class "level-card-top" ]
+            [ span [ class "level-num" ] [ text num ]
+            , if isCompleted then
+                viewCheckIcon
+
+              else
+                text ""
+            ]
+        , span [ class "level-label" ] [ text label ]
+        , span [ class "level-diff" ] [ text diff ]
+        ]
+
+
+viewRulesModal : Model -> Html Msg
+viewRulesModal model =
+    if model.showRulesModal then
+        div [ class "modal-overlay" ]
+            [ div [ class "modal-card modal-card--rules" ]
+                [ div [ class "levels-header" ]
+                    [ h2 [ class "modal-title", style "margin" "0" ] [ text "Como Jogar" ]
+                    , button [ class "icon-btn icon-btn--close", onClick ToggleRulesModal ] [ text "✕" ]
+                    ]
+                , div [ class "rules-body" ]
+                    [ div [ class "rule-item" ]
+                        [ span [ class "rule-badge" ] [ text "1" ]
+                        , span [] [ text "Coloque o número exato de gatos em cada linha, coluna e região colorida (1 no Normal, 2 no Ultra)." ]
+                        ]
+                    , div [ class "rule-item" ]
+                        [ span [ class "rule-badge" ] [ text "2" ]
+                        , span [] [ text "Dois gatos nunca podem se tocar, nem mesmo na diagonal." ]
+                        ]
+                    , div [ class "rule-item" ]
+                        [ span [ class "rule-badge" ] [ text "3" ]
+                        , span [] [ text "1 clique simples: marca a casa com X para eliminá-la. Clique novamente para desmarcar." ]
+                        ]
+                    , div [ class "rule-item" ]
+                        [ span [ class "rule-badge" ] [ text "4" ]
+                        , span [] [ text "2 cliques rápidos: posiciona o gato. Se acertar, o pinguim surge! Se errar, conta 1 erro (3 erros encerram o jogo)." ]
+                        ]
+                    , div [ class "rule-item" ]
+                        [ span [ class "rule-badge" ] [ text "5" ]
+                        , span [] [ text "Arrastar o mouse: preenche rapidamente uma linha inteira com X." ]
+                        ]
+                    ]
+                ]
+            ]
+
+    else
+        text ""
 
 
 viewThemeToggle : Model -> Html Msg
 viewThemeToggle model =
-    label [ class "theme-toggle" ]
-        [ input
-            [ type_ "checkbox"
-            , class "theme-controller"
-            , checked model.darkTheme
-            , onCheck ThemeToggled
+    div [ class "theme-toggle" ]
+        [ button
+            [ class "btn-theme"
+            , classList [ ( "btn-theme--active", not model.darkTheme ) ]
+            , onClick (ThemeToggled False)
+            , Html.Attributes.attribute "type" "button"
+            , Html.Attributes.attribute "title" "Tema claro"
+            , Html.Attributes.attribute "aria-label" "Tema claro"
+            , Html.Attributes.attribute "data-theme-choice" "light"
             ]
-            []
-        , span []
-            [ text
-                (if model.darkTheme then
-                    "Tema escuro"
+            [ Svg.svg
+                [ SvgAttr.viewBox "0 0 24 24"
+                , SvgAttr.width "18"
+                , SvgAttr.height "18"
+                , SvgAttr.fill "none"
+                , SvgAttr.stroke "currentColor"
+                , SvgAttr.strokeWidth "2"
+                , SvgAttr.strokeLinecap "round"
+                , SvgAttr.strokeLinejoin "round"
+                ]
+                [ Svg.circle [ SvgAttr.cx "12", SvgAttr.cy "12", SvgAttr.r "5" ] []
+                , Svg.line [ SvgAttr.x1 "12", SvgAttr.y1 "1", SvgAttr.x2 "12", SvgAttr.y2 "3" ] []
+                , Svg.line [ SvgAttr.x1 "12", SvgAttr.y1 "21", SvgAttr.x2 "12", SvgAttr.y2 "23" ] []
+                , Svg.line [ SvgAttr.x1 "4.22", SvgAttr.y1 "4.22", SvgAttr.x2 "5.64", SvgAttr.y2 "5.64" ] []
+                , Svg.line [ SvgAttr.x1 "18.36", SvgAttr.y1 "18.36", SvgAttr.x2 "19.78", SvgAttr.y2 "19.78" ] []
+                , Svg.line [ SvgAttr.x1 "1", SvgAttr.y1 "12", SvgAttr.x2 "3", SvgAttr.y2 "12" ] []
+                , Svg.line [ SvgAttr.x1 "21", SvgAttr.y1 "12", SvgAttr.x2 "23", SvgAttr.y2 "12" ] []
+                , Svg.line [ SvgAttr.x1 "4.22", SvgAttr.y1 "19.78", SvgAttr.x2 "5.64", SvgAttr.y2 "18.36" ] []
+                , Svg.line [ SvgAttr.x1 "18.36", SvgAttr.y1 "5.64", SvgAttr.x2 "19.78", SvgAttr.y2 "4.22" ] []
+                ]
+            ]
+        , button
+            [ class "btn-theme"
+            , classList [ ( "btn-theme--active", model.darkTheme ) ]
+            , onClick (ThemeToggled True)
+            , Html.Attributes.attribute "type" "button"
+            , Html.Attributes.attribute "title" "Tema escuro"
+            , Html.Attributes.attribute "aria-label" "Tema escuro"
+            , Html.Attributes.attribute "data-theme-choice" "dark"
+            ]
+            [ Svg.svg
+                [ SvgAttr.viewBox "0 0 24 24"
+                , SvgAttr.width "18"
+                , SvgAttr.height "18"
+                , SvgAttr.fill "none"
+                , SvgAttr.stroke "currentColor"
+                , SvgAttr.strokeWidth "2"
+                , SvgAttr.strokeLinecap "round"
+                , SvgAttr.strokeLinejoin "round"
+                ]
+                [ Svg.path [ SvgAttr.d "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" ] []
+                ]
+            ]
+        ]
 
-                 else
-                    "Tema claro"
-                )
-            ]
+
+viewCatIcon : Html Msg
+viewCatIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "18"
+        , SvgAttr.height "18"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.path [ SvgAttr.d "M4 6 L4 2 L7 5 M20 6 L20 2 L17 5 M4 11 C4 16 8 19 12 19 C16 19 20 16 20 11 C20 7 16 7 12 7 C8 7 4 7 4 11 Z" ] []
+        ]
+
+
+viewHeartIcon : Bool -> Html Msg
+viewHeartIcon active =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "16"
+        , SvgAttr.height "16"
+        , SvgAttr.fill
+            (if active then
+                "#ef4444"
+
+             else
+                "none"
+            )
+        , SvgAttr.stroke
+            (if active then
+                "#ef4444"
+
+             else
+                "#94a3b8"
+            )
+        , SvgAttr.strokeWidth "2"
+        ]
+        [ Svg.path [ SvgAttr.d "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" ] []
+        ]
+
+
+viewLevelsGridIcon : Html Msg
+viewLevelsGridIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "18"
+        , SvgAttr.height "18"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        ]
+        [ Svg.rect [ SvgAttr.x "3", SvgAttr.y "3", SvgAttr.width "7", SvgAttr.height "7", SvgAttr.rx "2" ] []
+        , Svg.rect [ SvgAttr.x "14", SvgAttr.y "3", SvgAttr.width "7", SvgAttr.height "7", SvgAttr.rx "2" ] []
+        , Svg.rect [ SvgAttr.x "3", SvgAttr.y "14", SvgAttr.width "7", SvgAttr.height "7", SvgAttr.rx "2" ] []
+        , Svg.rect [ SvgAttr.x "14", SvgAttr.y "14", SvgAttr.width "7", SvgAttr.height "7", SvgAttr.rx "2" ] []
+        ]
+
+
+viewLightbulbIcon : Html Msg
+viewLightbulbIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "18"
+        , SvgAttr.height "18"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.path [ SvgAttr.d "M9 18h6m-4 4h2m-5-8.5a7 7 0 1 1 8 0c-1.5 1.5-2 2.5-2 4.5h-4c0-2-.5-3-2-4.5z" ] []
+        ]
+
+
+viewLightbulbIconSmall : Html Msg
+viewLightbulbIconSmall =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "15"
+        , SvgAttr.height "15"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.path [ SvgAttr.d "M9 18h6m-4 4h2m-5-8.5a7 7 0 1 1 8 0c-1.5 1.5-2 2.5-2 4.5h-4c0-2-.5-3-2-4.5z" ] []
+        ]
+
+
+viewRestartIcon : Html Msg
+viewRestartIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "18"
+        , SvgAttr.height "18"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.path [ SvgAttr.d "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" ] []
+        , Svg.path [ SvgAttr.d "M3 3v5h5" ] []
+        ]
+
+
+viewHelpIcon : Html Msg
+viewHelpIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "18"
+        , SvgAttr.height "18"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.circle [ SvgAttr.cx "12", SvgAttr.cy "12", SvgAttr.r "10" ] []
+        , Svg.path [ SvgAttr.d "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" ] []
+        , Svg.line [ SvgAttr.x1 "12", SvgAttr.y1 "17", SvgAttr.x2 "12.01", SvgAttr.y2 "17" ] []
+        ]
+
+
+viewCheckIcon : Html Msg
+viewCheckIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.width "14"
+        , SvgAttr.height "14"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "#10b981"
+        , SvgAttr.strokeWidth "3"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.path [ SvgAttr.d "M20 6L9 17l-5-5" ] []
         ]

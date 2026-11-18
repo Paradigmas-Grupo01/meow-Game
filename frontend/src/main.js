@@ -19,20 +19,33 @@ const savedTheme = localStorage.getItem(THEME_KEY);
 const systemIsDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 const darkTheme = savedTheme ? savedTheme === "dark" : systemIsDark;
 
+if (darkTheme) {
+  document.documentElement.setAttribute("data-theme", "dark");
+  document.body.classList.add("dark-theme");
+} else {
+  document.documentElement.setAttribute("data-theme", "light");
+  document.body.classList.remove("dark-theme");
+}
+
 // `flags` é entregue à função `init` do Elm (veja o tipo Flags em Main.elm).
 Elm.Main.init({
   node: document.getElementById("app"),
   flags: { darkTheme },
 });
 
-// Guarda a escolha quando o botão de tema muda. Ouvimos o evento no
-// `document` inteiro ("delegação de eventos") porque o checkbox é criado pelo
-// Elm e pode ser recriado a qualquer momento.
-//
-// Isto poderia ser feito com uma PORT do Elm (um canal de mensagens entre Elm
-// e JavaScript), mas para algo tão simples o JavaScript sozinho basta.
-document.addEventListener("change", (event) => {
-  if (event.target.matches(".theme-controller")) {
-    localStorage.setItem(THEME_KEY, event.target.checked ? "dark" : "light");
+document.addEventListener("click", (event) => {
+  const btn = event.target.closest(".btn-theme");
+  if (btn) {
+    const choice = btn.getAttribute("data-theme-choice");
+    if (choice) {
+      const isDark = choice === "dark";
+      localStorage.setItem(THEME_KEY, choice);
+      document.documentElement.setAttribute("data-theme", choice);
+      if (isDark) {
+        document.body.classList.add("dark-theme");
+      } else {
+        document.body.classList.remove("dark-theme");
+      }
+    }
   }
 });
