@@ -1,195 +1,20 @@
 module Api exposing
-    ( Difficulty(..)
-    , Hint
-    , MeowdokuHint
+    ( MeowdokuHint
     , MeowdokuPuzzle
-    , difficultyLabel
+    , encodeBoard
+    , encodeRegions
     , fetchMeowdokuExample
-    , generate
-    , hint
     , hintMeowdoku
-    , solve
+    , httpErrorToString
+    , meowdokuHintDecoder
+    , meowdokuPuzzleDecoder
     , solveMeowdoku
     )
-
-{-| Comunicação com o backend (FastAPI + Prolog).
-
-Em Elm, uma requisição HTTP não "acontece" quando chamamos uma função. As
-funções deste módulo devolvem um `Cmd msg`: uma DESCRIÇÃO do efeito que
-queremos. Quem executa o efeito é o runtime do Elm; quando a resposta chega,
-ele chama nosso `update` com a mensagem que indicamos (por exemplo,
-`GotPuzzle resultado`). É assim que o Elm mantém todas as funções puras.
-
-As URLs começam com `/api/...`. Em desenvolvimento, o Vite repassa essas
-requisições para o backend em <http://localhost:8000> (veja vite.config.js).
-
--}
 
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
-import Sudoku exposing (Board)
-
-
-type Difficulty
-    = Easy
-    | Medium
-    | Hard
-
-
-difficultyLabel : Difficulty -> String
-difficultyLabel difficulty =
-    case difficulty of
-        Easy ->
-            "Fácil"
-
-        Medium ->
-            "Médio"
-
-        Hard ->
-            "Difícil"
-
-
-{-| Nome usado pela API (e pelo Prolog: são os átomos easy/medium/hard).
--}
-difficultyToString : Difficulty -> String
-difficultyToString difficulty =
-    case difficulty of
-        Easy ->
-            "easy"
-
-        Medium ->
-            "medium"
-
-        Hard ->
-            "hard"
-
-
-{-| Um _record_ (registro): um conjunto de campos com nome. O `type alias`
-também cria automaticamente uma função construtora `Hint : Int -> Int -> Int
--> Hint`, que usamos no decoder abaixo.
--}
-type alias Hint =
-    { row : Int
-    , col : Int
-    , value : Int
-    }
-
-
-
--- REQUISIÇÕES
---
--- Todas recebem uma função `toMsg` que diz como embrulhar o resultado numa
--- mensagem. `Result String a` é: ou `Ok valor`, ou `Err mensagemDeErro`.
-
-
-generate : Difficulty -> (Result String Board -> msg) -> Cmd msg
-generate difficulty toMsg =
-    Http.post
-        { url = "/api/generate"
-        , body =
-            Http.jsonBody
-                (Encode.object [ ( "difficulty", Encode.string (difficultyToString difficulty) ) ])
-        , expect = expectJson toMsg boardDecoder
-        }
-
-
-solve : Board -> (Result String Board -> msg) -> Cmd msg
-solve board toMsg =
-    Http.post
-        { url = "/api/solve"
-        , body = Http.jsonBody (encodeBoard board)
-        , expect = expectJson toMsg boardDecoder
-        }
-
-
-hint : Board -> (Result String Hint -> msg) -> Cmd msg
-hint board toMsg =
-    Http.post
-        { url = "/api/hint"
-        , body = Http.jsonBody (encodeBoard board)
-        , expect = expectJson toMsg hintDecoder
-        }
-
-
-
--- JSON
---
--- Elm não converte JSON em valores "magicamente". Escrevemos DECODERS, que
--- descrevem a forma esperada do JSON. Se o JSON vier diferente, a decodificação
--- falha com uma mensagem de erro, em vez de gerar um valor inválido.
-
-
-{-| Envia `{"board": [[5,3,0,...], ...]}`.
--}
-encodeBoard : Board -> Encode.Value
-encodeBoard board =
-    Encode.object
-        [ ( "board", Encode.list (Encode.list Encode.int) (Sudoku.toLists board) ) ]
-
-
-{-| Lê `{"board": [[...], ...]}`. Decoders se combinam como peças de Lego:
-`Decode.list (Decode.list Decode.int)` é "uma lista de listas de inteiros".
--}
-boardDecoder : Decoder Board
-boardDecoder =
-    Decode.field "board" (Decode.list (Decode.list Decode.int))
-        |> Decode.map Sudoku.fromLists
-
-
-{-| `Decode.map3` junta três decoders e passa os três resultados para a
-função `Hint` (o construtor do record).
--}
-hintDecoder : Decoder Hint
-hintDecoder =
-    Decode.map3 Hint
-        (Decode.field "row" Decode.int)
-        (Decode.field "col" Decode.int)
-        (Decode.field "value" Decode.int)
-
-
-
--- TRATAMENTO DE ERROS
---
--- `Http.expectJson` já existe, mas quando o servidor responde com erro (ex.:
--- 422) ele descarta o corpo da resposta. Nosso backend manda uma mensagem útil
--- em `{"detail": "..."}`, então escrevemos nossa própria versão, que olha o
--- corpo e devolve sempre um `Result String a` com mensagens em português.
-
-
-expectJson : (Result String a -> msg) -> Decoder a -> Http.Expect msg
-expectJson toMsg decoder =
-    Http.expectStringResponse toMsg <|
-        \response ->
-            case response of
-                Http.GoodStatus_ _ body ->
-                    Decode.decodeString decoder body
-                        |> Result.mapError (\_ -> "Resposta inesperada do servidor.")
-
-                Http.BadStatus_ metadata body ->
-                    Err (errorDetail metadata.statusCode body)
-
-                Http.BadUrl_ url ->
-                    Err ("URL inválida: " ++ url)
-
-                Http.Timeout_ ->
-                    Err "O servidor demorou demais para responder."
-
-                Http.NetworkError_ ->
-                    Err "Não foi possível falar com o servidor. O backend está rodando?"
-
-
-{-| Tenta extrair o campo `detail` (quando ele é uma string). Se não der,
-monta uma mensagem genérica com o código HTTP.
--}
-errorDetail : Int -> String -> String
-errorDetail status body =
-    case Decode.decodeString (Decode.field "detail" Decode.string) body of
-        Ok detail ->
-            detail
-
-        Err _ ->
-            "Erro no servidor (código " ++ String.fromInt status ++ ")."
+import Url
 
 
 type alias MeowdokuPuzzle =
@@ -208,10 +33,15 @@ type alias MeowdokuHint =
     }
 
 
+type ApiError
+    = Transport Http.Error
+    | Rejected Int String
+
+
 fetchMeowdokuExample : String -> (Result String MeowdokuPuzzle -> msg) -> Cmd msg
 fetchMeowdokuExample name toMsg =
     Http.get
-        { url = "/api/meowdoku/example?name=" ++ name
+        { url = "/api/meowdoku/example?name=" ++ Url.percentEncode name
         , expect = expectJson toMsg meowdokuPuzzleDecoder
         }
 
@@ -220,14 +50,8 @@ solveMeowdoku : List (List Int) -> Int -> (Result String (List (List Int)) -> ms
 solveMeowdoku regions catsPerUnit toMsg =
     Http.post
         { url = "/api/meowdoku/solve"
-        , body =
-            Http.jsonBody
-                (Encode.object
-                    [ ( "regions", Encode.list (Encode.list Encode.int) regions )
-                    , ( "cats_per_unit", Encode.int catsPerUnit )
-                    ]
-                )
-        , expect = expectJson toMsg (Decode.field "solution" (Decode.list (Decode.list Decode.int)))
+        , body = Http.jsonBody (encodeRegions regions catsPerUnit)
+        , expect = expectJson toMsg solutionDecoder
         }
 
 
@@ -235,16 +59,31 @@ hintMeowdoku : List (List Int) -> List (List Int) -> Int -> (Result String Meowd
 hintMeowdoku regions board catsPerUnit toMsg =
     Http.post
         { url = "/api/meowdoku/hint"
-        , body =
-            Http.jsonBody
-                (Encode.object
-                    [ ( "regions", Encode.list (Encode.list Encode.int) regions )
-                    , ( "board", Encode.list (Encode.list Encode.int) board )
-                    , ( "cats_per_unit", Encode.int catsPerUnit )
-                    ]
-                )
+        , body = Http.jsonBody (encodeBoard regions board catsPerUnit)
         , expect = expectJson toMsg meowdokuHintDecoder
         }
+
+
+encodeMatrix : List (List Int) -> Encode.Value
+encodeMatrix =
+    Encode.list (Encode.list Encode.int)
+
+
+encodeRegions : List (List Int) -> Int -> Encode.Value
+encodeRegions regions catsPerUnit =
+    Encode.object
+        [ ( "regions", encodeMatrix regions )
+        , ( "cats_per_unit", Encode.int catsPerUnit )
+        ]
+
+
+encodeBoard : List (List Int) -> List (List Int) -> Int -> Encode.Value
+encodeBoard regions board catsPerUnit =
+    Encode.object
+        [ ( "regions", encodeMatrix regions )
+        , ( "board", encodeMatrix board )
+        , ( "cats_per_unit", Encode.int catsPerUnit )
+        ]
 
 
 meowdokuPuzzleDecoder : Decoder MeowdokuPuzzle
@@ -253,7 +92,8 @@ meowdokuPuzzleDecoder =
         (Decode.field "name" Decode.string)
         (Decode.field "size" Decode.int)
         (Decode.field "cats_per_unit" Decode.int)
-        (Decode.field "regions" (Decode.list (Decode.list Decode.int)))
+        (Decode.field "regions" matrixDecoder)
+        |> Decode.andThen validatePuzzle
 
 
 meowdokuHintDecoder : Decoder MeowdokuHint
@@ -264,3 +104,117 @@ meowdokuHintDecoder =
         (Decode.field "value" Decode.int)
         (Decode.field "reason" Decode.string)
 
+
+solutionDecoder : Decoder (List (List Int))
+solutionDecoder =
+    Decode.field "solution" matrixDecoder
+
+
+matrixDecoder : Decoder (List (List Int))
+matrixDecoder =
+    Decode.list (Decode.list Decode.int)
+
+
+validatePuzzle : MeowdokuPuzzle -> Decoder MeowdokuPuzzle
+validatePuzzle puzzle =
+    let
+        isSquare =
+            List.length puzzle.regions
+                == puzzle.size
+                && List.all (\row -> List.length row == puzzle.size) puzzle.regions
+    in
+    if puzzle.size < 1 || puzzle.catsPerUnit < 1 then
+        Decode.fail "Tamanho do tabuleiro ou quantidade de gatos inválidos."
+
+    else if not isSquare then
+        Decode.fail "A matriz de regiões não corresponde ao tamanho do tabuleiro."
+
+    else
+        Decode.succeed puzzle
+
+
+expectJson : (Result String a -> msg) -> Decoder a -> Http.Expect msg
+expectJson toMsg decoder =
+    Http.expectStringResponse (Result.mapError apiErrorToString >> toMsg) (responseToResult decoder)
+
+
+responseToResult : Decoder a -> Http.Response String -> Result ApiError a
+responseToResult decoder response =
+    case response of
+        Http.BadUrl_ url ->
+            Err (Transport (Http.BadUrl url))
+
+        Http.Timeout_ ->
+            Err (Transport Http.Timeout)
+
+        Http.NetworkError_ ->
+            Err (Transport Http.NetworkError)
+
+        Http.BadStatus_ metadata body ->
+            Err (Rejected metadata.statusCode body)
+
+        Http.GoodStatus_ _ body ->
+            Decode.decodeString decoder body
+                |> Result.mapError (Decode.errorToString >> Http.BadBody >> Transport)
+
+
+apiErrorToString : ApiError -> String
+apiErrorToString error =
+    case error of
+        Transport httpError ->
+            httpErrorToString httpError
+
+        Rejected status body ->
+            case ( status, Decode.decodeString detailDecoder body ) of
+                ( 422, Ok detail ) ->
+                    detail
+
+                _ ->
+                    httpErrorToString (Http.BadStatus status)
+
+
+detailDecoder : Decoder String
+detailDecoder =
+    Decode.field "detail" Decode.string
+        |> Decode.andThen
+            (\detail ->
+                if String.isEmpty (String.trim detail) then
+                    Decode.fail "detalhe vazio"
+
+                else
+                    Decode.succeed detail
+            )
+
+
+httpErrorToString : Http.Error -> String
+httpErrorToString error =
+    case error of
+        Http.BadUrl url ->
+            "Endereço inválido: " ++ url
+
+        Http.Timeout ->
+            "O servidor demorou demais para responder."
+
+        Http.NetworkError ->
+            "Não foi possível falar com o servidor. O backend está rodando?"
+
+        Http.BadStatus status ->
+            statusToString status
+
+        Http.BadBody _ ->
+            "Resposta inesperada do servidor."
+
+
+statusToString : Int -> String
+statusToString status =
+    if status == 404 then
+        "Recurso não encontrado no servidor."
+
+    else if status == 422 then
+        "O servidor recusou os dados enviados."
+
+    else if status >= 500 then
+        "Erro interno do servidor (código " ++ String.fromInt status ++ ")."
+
+    else
+        "Erro na requisição (código " ++ String.fromInt status ++ ")."
