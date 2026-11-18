@@ -2,9 +2,11 @@ module Main exposing (main)
 
 import Api exposing (MeowdokuHint, MeowdokuPuzzle)
 import Browser
-import Html exposing (Html, aside, button, div, footer, h1, h2, header, input, label, main_, span, text)
-import Html.Attributes exposing (checked, class, classList, style, type_)
-import Html.Events exposing (onCheck, onClick)
+import Browser.Events
+import Html exposing (Html, aside, button, div, footer, h1, h2, header, main_, span, text)
+import Html.Attributes exposing (class, classList, style)
+import Html.Events exposing (onClick)
+import Json.Decode as Decode
 import Meowdoku exposing (Board, Cell, CellMark(..))
 
 
@@ -32,6 +34,8 @@ type alias Model =
     , error : Maybe String
     , hintMessage : Maybe String
     , playerWon : Bool
+    , isDragging : Bool
+    , dragMark : CellMark
     }
 
 
@@ -45,6 +49,8 @@ init flags =
       , error = Nothing
       , hintMessage = Nothing
       , playerWon = False
+      , isDragging = False
+      , dragMark = Empty
       }
     , Api.fetchMeowdokuExample "classic_6x6" GotPuzzle
     )
@@ -53,6 +59,9 @@ init flags =
 type Msg
     = GotPuzzle (Result String MeowdokuPuzzle)
     | CellClicked Int Int
+    | DragStarted Int Int
+    | DragEntered Int Int
+    | DragEnded
     | HintRequested
     | GotHint (Result String MeowdokuHint)
     | SolveRequested
@@ -144,6 +153,57 @@ update msg model =
               }
             , Cmd.none
             )
+
+        DragStarted r c ->
+            let
+                updatedBoard =
+                    Meowdoku.cycleMarkAt r c model.board
+
+                newMark =
+                    case Meowdoku.getCell r c updatedBoard of
+                        Just cell ->
+                            cell.mark
+
+                        Nothing ->
+                            Empty
+
+                completedByPlayer =
+                    Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+            in
+            ( { model
+                | board = updatedBoard
+                , isDragging = True
+                , dragMark = newMark
+                , hintMessage = Nothing
+                , error = Nothing
+                , playerWon = completedByPlayer
+              }
+            , Cmd.none
+            )
+
+        DragEntered r c ->
+            if model.isDragging then
+                let
+                    updatedBoard =
+                        Meowdoku.setMarkAt r c model.dragMark model.board
+
+                    completedByPlayer =
+                        Meowdoku.isSolved updatedBoard updatedBoard.catsPerUnit
+                in
+                ( { model
+                    | board = updatedBoard
+                    , hintMessage = Nothing
+                    , error = Nothing
+                    , playerWon = completedByPlayer
+                  }
+                , Cmd.none
+                )
+
+            else
+                ( model, Cmd.none )
+
+        DragEnded ->
+            ( { model | isDragging = False }, Cmd.none )
 
         HintRequested ->
             ( { model | loading = True, error = Nothing, hintMessage = Nothing }
@@ -254,8 +314,12 @@ update msg model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    if model.isDragging then
+        Browser.Events.onMouseUp (Decode.succeed DragEnded)
+
+    else
+        Sub.none
 
 
 view : Model -> Html Msg
@@ -290,15 +354,20 @@ view model =
                     , div [ class "message-area" ] [ viewMessages model ]
                     , viewStats model.board
                     , div [ class "controls-section" ]
-                        [ span [ class "section-label" ] [ text "SELETOR DE FASES" ]
-                        , div [ class "phase-selector", style "display" "flex", style "flex-wrap" "wrap", style "gap" "0.35rem", style "margin-bottom" "0.6rem" ]
-                            [ viewPhaseButton model "classic_6x6" "6x6"
-                            , viewPhaseButton model "lantern_6x6" "6x6 (L)"
-                            , viewPhaseButton model "classic_8x8" "8x8"
-                            , viewPhaseButton model "lantern_8x8" "8x8 (L)"
-                            , viewPhaseButton model "double_8x8" "8x8 (K=2)"
+                        [ Html.node "details"
+                            [ class "collapsible" ]
+                            [ Html.node "summary"
+                                [ class "collapsible-trigger" ]
+                                [ text "Fases" ]
+                            , div [ class "phase-selector", style "display" "flex", style "flex-wrap" "wrap", style "gap" "0.35rem", style "margin-top" "0.5rem", style "margin-bottom" "0.6rem" ]
+                                [ viewPhaseButton model "classic_6x6" "6x6"
+                                , viewPhaseButton model "lantern_6x6" "6x6 (L)"
+                                , viewPhaseButton model "classic_8x8" "8x8"
+                                , viewPhaseButton model "lantern_8x8" "8x8 (L)"
+                                , viewPhaseButton model "double_8x8" "8x8 (K=2)"
+                                ]
                             ]
-                        , span [ class "section-label" ] [ text "AÇÕES" ]
+                        , span [ class "section-label" ] [ text "ACOES" ]
                         , button [ class "btn btn-hint", onClick HintRequested ] [ text "Pedir Dica" ]
                         , button [ class "btn btn-solve", onClick SolveRequested ] [ text "Resolver com Prolog" ]
                         , button [ class "btn btn-reset", onClick NewGameRequested ] [ text "Novo Jogo (Avançar)" ]
@@ -315,34 +384,36 @@ view model =
 
 viewInstructions : Html Msg
 viewInstructions =
-    div [ class "instructions" ]
-        [ div [ class "instructions-heading" ]
-            [ span [ class "eyebrow" ] [ text "ENTENDA O DESAFIO" ]
-            , h2 [] [ text "Como jogar?" ]
-            ]
-        , div [ class "instructions-intro" ]
-            [ text "Seu objetivo é posicionar os gatos sem desrespeitar as regras do tabuleiro." ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "1" ]
-            , span [] [ text "Coloque exatamente um gato em cada linha." ]
-            ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "2" ]
-            , span [] [ text "Coloque exatamente um gato em cada coluna." ]
-            ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "3" ]
-            , span [] [ text "Cada região colorida deve conter exatamente um gato." ]
-            ]
-        , div [ class "instructions-rule" ]
-            [ span [ class "instructions-number" ] [ text "4" ]
-            , span [] [ text "Dois gatos não podem ficar em células vizinhas, nem na diagonal." ]
-            ]
-        , div [ class "instructions-tools" ]
-            [ h2 [] [ text "Ferramentas do jogo" ]
-            , pLike "Pedir Dica: solicita ao sistema uma sugestão de posição para ajudar você a continuar."
-            , pLike "Resolver com Prolog: usa o mecanismo lógico Prolog para buscar uma solução completa do desafio."
-            , pLike "Vitória: acontece quando o tabuleiro está completo e todas as regras são respeitadas."
+    Html.node "details"
+        [ class "collapsible" ]
+        [ Html.node "summary"
+            [ class "collapsible-trigger" ]
+            [ text "Como jogar?" ]
+        , div [ class "instructions" ]
+            [ div [ class "instructions-intro" ]
+                [ text "Seu objetivo é posicionar os gatos sem desrespeitar as regras do tabuleiro." ]
+            , div [ class "instructions-rule" ]
+                [ span [ class "instructions-number" ] [ text "1" ]
+                , span [] [ text "Coloque exatamente um gato em cada linha." ]
+                ]
+            , div [ class "instructions-rule" ]
+                [ span [ class "instructions-number" ] [ text "2" ]
+                , span [] [ text "Coloque exatamente um gato em cada coluna." ]
+                ]
+            , div [ class "instructions-rule" ]
+                [ span [ class "instructions-number" ] [ text "3" ]
+                , span [] [ text "Cada região colorida deve conter exatamente um gato." ]
+                ]
+            , div [ class "instructions-rule" ]
+                [ span [ class "instructions-number" ] [ text "4" ]
+                , span [] [ text "Dois gatos não podem ficar em células vizinhas, nem na diagonal." ]
+                ]
+            , div [ class "instructions-tools" ]
+                [ h2 [] [ text "Ferramentas do jogo" ]
+                , pLike "Pedir Dica: solicita ao sistema uma sugestão de posição para ajudar você a continuar."
+                , pLike "Resolver com Prolog: usa o mecanismo lógico Prolog para buscar uma solução completa do desafio."
+                , pLike "Vitória: acontece quando o tabuleiro está completo e todas as regras são respeitadas."
+                ]
             ]
         ]
 
@@ -412,7 +483,9 @@ viewCell cell =
             , ( "cell--blocked", cell.mark == MarkedX )
             , ( "region-" ++ String.fromInt cell.regionId, True )
             ]
-        , onClick (CellClicked cell.row cell.col)
+        , Html.Events.on "mousedown" (Decode.succeed (DragStarted cell.row cell.col))
+        , Html.Events.on "mouseenter" (Decode.succeed (DragEntered cell.row cell.col))
+        , Html.Attributes.attribute "draggable" "false"
         , style "aspect-ratio" "1"
         , style "display" "flex"
         , style "align-items" "center"
@@ -486,21 +559,53 @@ viewPhaseButton model id label =
 
 viewThemeToggle : Model -> Html Msg
 viewThemeToggle model =
-    label [ class "theme-toggle" ]
-        [ input
-            [ type_ "checkbox"
-            , class "theme-controller"
-            , checked model.darkTheme
-            , onCheck ThemeToggled
+    div [ class "theme-toggle" ]
+        [ button
+            [ class "btn-theme"
+            , classList [ ( "btn-theme--active", not model.darkTheme ) ]
+            , onClick (ThemeToggled False)
             ]
-            []
-        , span []
-            [ text
-                (if model.darkTheme then
-                    "Tema escuro"
-
-                 else
-                    "Tema claro"
-                )
+            [ Html.node "svg"
+                [ Html.Attributes.attribute "xmlns" "http://www.w3.org/2000/svg"
+                , Html.Attributes.attribute "viewBox" "0 0 24 24"
+                , Html.Attributes.attribute "fill" "none"
+                , Html.Attributes.attribute "stroke" "currentColor"
+                , Html.Attributes.attribute "stroke-width" "2"
+                , Html.Attributes.attribute "stroke-linecap" "round"
+                , Html.Attributes.attribute "stroke-linejoin" "round"
+                , Html.Attributes.attribute "width" "20"
+                , Html.Attributes.attribute "height" "20"
+                , Html.Attributes.attribute "aria-label" "Tema claro"
+                ]
+                [ Html.node "circle" [ Html.Attributes.attribute "cx" "12", Html.Attributes.attribute "cy" "12", Html.Attributes.attribute "r" "5" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "12", Html.Attributes.attribute "y1" "1", Html.Attributes.attribute "x2" "12", Html.Attributes.attribute "y2" "3" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "12", Html.Attributes.attribute "y1" "21", Html.Attributes.attribute "x2" "12", Html.Attributes.attribute "y2" "23" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "4.22", Html.Attributes.attribute "y1" "4.22", Html.Attributes.attribute "x2" "5.64", Html.Attributes.attribute "y2" "5.64" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "18.36", Html.Attributes.attribute "y1" "18.36", Html.Attributes.attribute "x2" "19.78", Html.Attributes.attribute "y2" "19.78" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "1", Html.Attributes.attribute "y1" "12", Html.Attributes.attribute "x2" "3", Html.Attributes.attribute "y2" "12" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "21", Html.Attributes.attribute "y1" "12", Html.Attributes.attribute "x2" "23", Html.Attributes.attribute "y2" "12" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "4.22", Html.Attributes.attribute "y1" "19.78", Html.Attributes.attribute "x2" "5.64", Html.Attributes.attribute "y2" "18.36" ] []
+                , Html.node "line" [ Html.Attributes.attribute "x1" "18.36", Html.Attributes.attribute "y1" "5.64", Html.Attributes.attribute "x2" "19.78", Html.Attributes.attribute "y2" "4.22" ] []
+                ]
+            ]
+        , button
+            [ class "btn-theme"
+            , classList [ ( "btn-theme--active", model.darkTheme ) ]
+            , onClick (ThemeToggled True)
+            ]
+            [ Html.node "svg"
+                [ Html.Attributes.attribute "xmlns" "http://www.w3.org/2000/svg"
+                , Html.Attributes.attribute "viewBox" "0 0 24 24"
+                , Html.Attributes.attribute "fill" "none"
+                , Html.Attributes.attribute "stroke" "currentColor"
+                , Html.Attributes.attribute "stroke-width" "2"
+                , Html.Attributes.attribute "stroke-linecap" "round"
+                , Html.Attributes.attribute "stroke-linejoin" "round"
+                , Html.Attributes.attribute "width" "20"
+                , Html.Attributes.attribute "height" "20"
+                , Html.Attributes.attribute "aria-label" "Tema escuro"
+                ]
+                [ Html.node "path" [ Html.Attributes.attribute "d" "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" ] []
+                ]
             ]
         ]

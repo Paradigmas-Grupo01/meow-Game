@@ -277,27 +277,135 @@ body {
 
     align-items: center;
 
-    gap: 9px;
-
-    cursor: pointer;
+    gap: 4px;
 
     color: var(--muted);
-
-    font-size: 14px;
 
 }
 
 
 
-.theme-toggle input {
+.btn-theme {
 
-    width: 18px;
+    display: flex;
 
-    height: 18px;
+    align-items: center;
 
-    accent-color: var(--primary);
+    justify-content: center;
+
+    width: 36px;
+
+    height: 36px;
+
+    border: none;
+
+    border-radius: 10px;
+
+    background: transparent;
+
+    color: var(--muted);
 
     cursor: pointer;
+
+    transition: background 0.18s, color 0.18s;
+
+}
+
+
+
+.btn-theme:hover {
+
+    background: rgba(119, 99, 216, 0.10);
+
+    color: var(--primary);
+
+}
+
+
+
+.btn-theme--active {
+
+    background: rgba(119, 99, 216, 0.14);
+
+    color: var(--primary);
+
+}
+
+
+
+/* =========================================
+
+   SECOES COLAPSAVEIS
+
+========================================= */
+
+
+
+details.collapsible {
+
+    margin: 0.3rem 0;
+
+    border-top: 1px solid var(--border);
+
+    padding-top: 0.4rem;
+
+}
+
+
+
+details.collapsible summary.collapsible-trigger {
+
+    cursor: pointer;
+
+    list-style: none;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    padding: 0.35rem 0;
+
+    font-size: 11px;
+
+    font-weight: 800;
+
+    letter-spacing: 1.5px;
+
+    color: var(--muted);
+
+    text-transform: uppercase;
+
+    user-select: none;
+
+}
+
+
+
+details.collapsible summary.collapsible-trigger::-webkit-details-marker {
+
+    display: none;
+
+}
+
+
+
+details.collapsible summary.collapsible-trigger::after {
+
+    content: "\25be";
+
+    font-size: 10px;
+
+    transition: transform 0.2s;
+
+}
+
+
+
+details.collapsible[open] summary.collapsible-trigger::after {
+
+    content: "\25b4";
 
 }
 
@@ -470,6 +578,10 @@ body {
     border-radius: 17px;
 
     overflow: hidden;
+
+    user-select: none;
+
+    -webkit-user-select: none;
 
 }
 
