@@ -82,4 +82,39 @@ test(unsolvable_puzzle_fails, [fail]) :-
                           [0, 1] ],
     solve(UnsolvableRegions, 1, _).
 
+test(uniqueness_rejects_multiple_solutions, [fail]) :-
+    ambiguous_regions(6, Regions),
+    has_unique_solution(Regions, 1).
+
+test(uniqueness_rejects_no_solution, [fail]) :-
+    has_unique_solution([[0,1],[0,1]], 1).
+
+test(four_classic_fallbacks_are_connected_and_unique) :-
+    findall(Size, example_puzzle(_, Size, 1, _), Sizes),
+    msort(Sizes, [6,6,8,8]),
+    forall(example_puzzle(_, Size, K, Regions),
+           (connected_partition(Regions, Size), has_unique_solution(Regions, K))).
+
+test(generation_preserves_partition_and_solution,
+     [forall(member(Size-K, [6-1, 8-1, 8-2]))]) :-
+    generate(Size, K, Regions, Solution),
+    connected_partition(Regions, Size),
+    valid_solution(Regions, Solution, K),
+    has_unique_solution(Regions, K).
+
+ambiguous_regions(Size, Regions) :-
+    Max is Size - 1,
+    numlist(0, Max, Ids),
+    length(Regions, Size),
+    maplist(=(Ids), Regions).
+
+connected_partition(Regions, Size) :-
+    length(Regions, Size),
+    maplist(same_length(Regions), Regions),
+    append(Regions, Cells),
+    sort(Cells, Ids),
+    Max is Size - 1,
+    numlist(0, Max, Ids),
+    forall(member(Id, Ids), meowdoku:region_connected(Regions, Id)).
+
 :- end_tests(meowdoku_core).

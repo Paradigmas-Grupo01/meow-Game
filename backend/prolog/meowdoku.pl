@@ -4,13 +4,14 @@
             valid_solution/3,
             has_unique_solution/2,
             example_puzzle/4,
+            generate/4,
             print_grid/1
           ]).
 
 :- use_module(library(clpfd)).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
-:- use_module(library(aggregate)).
+:- use_module(library(random)).
 
 solve(Regions, CatsPerUnit, Solution) :-
     length(Regions, N),
@@ -132,7 +133,11 @@ check_no_touch_strict(Board) :-
     ).
 
 has_unique_solution(Regions, CatsPerUnit) :-
-    aggregate_all(count, solve(Regions, CatsPerUnit, _), 1).
+    unique_solution(Regions, CatsPerUnit, _).
+
+unique_solution(Regions, CatsPerUnit, Solution) :-
+    once(findnsols(2, Candidate, solve(Regions, CatsPerUnit, Candidate), Solutions)),
+    Solutions = [Solution].
 
 hint(Regions, Board, CatsPerUnit, hint(R, C, 1, Reason)) :-
     solve(Regions, CatsPerUnit, Solution),
@@ -195,28 +200,99 @@ explain_cat_placement(Regions, _Board, _K, R, C, Reason) :-
         "A posicao (~w,~w) no territorio ~w e a unica opcao valida restante.",
         [R, C, RegId]).
 
+% generate(+Size, +CatsPerUnit, -Regions, -Solution)
+% Transfere células de fronteira sem dividir o território de origem.
+generate(Size, K, Regions, Solution) :-
+    findall(Map, example_puzzle(_, Size, K, Map), Maps),
+    Maps = [_|_],
+    random_member(Fallback, Maps),
+    (   once(unique_partition_variant(Fallback, K, Regions, Solution))
+    ->  true
+    ;   Regions = Fallback,
+        once(solve(Regions, K, Solution))
+    ).
+
+unique_partition_variant(Map, K, Regions, Solution) :-
+    findall(move(R, C, From, To),
+            ( get_cell(Map, R, C, From),
+              orthogonal_neighbor(R-C, AdjR-AdjC),
+              get_cell(Map, AdjR, AdjC, To),
+              From \= To
+            ),
+            Moves),
+    sort(Moves, UniqueMoves),
+    random_permutation(UniqueMoves, Shuffled),
+    member(move(R, C, From, To), Shuffled),
+    replace_cell(Map, R, C, To, Regions),
+    region_connected(Regions, From),
+    unique_solution(Regions, K, Solution).
+
+replace_cell(Grid, R, C, Value, NewGrid) :-
+    nth0(R, Grid, Row, OtherRows),
+    nth0(C, Row, _, OtherCells),
+    nth0(C, NewRow, Value, OtherCells),
+    nth0(R, NewGrid, NewRow, OtherRows).
+
+orthogonal_neighbor(R-C, AdjR-AdjC) :-
+    member(DR-DC, [1-0, (-1)-0, 0-1, 0-(-1)]),
+    AdjR is R + DR,
+    AdjC is C + DC,
+    AdjR >= 0,
+    AdjC >= 0.
+
+region_connected(Map, Id) :-
+    findall(R-C, get_cell(Map, R, C, Id), Cells),
+    Cells = [Start|Rest],
+    flood_region([Start], Rest).
+
+flood_region([], []).
+flood_region([Cell|Queue], Unseen) :-
+    partition(orthogonal_neighbor(Cell), Unseen, Neighbors, Remaining),
+    append(Neighbors, Queue, Pending),
+    flood_region(Pending, Remaining).
+
 example_puzzle(classic_6x6, 6, 1,
-    [ [0, 0, 1, 1, 1, 2],
-      [0, 0, 1, 1, 2, 2],
-      [0, 3, 3, 1, 2, 2],
-      [3, 3, 3, 4, 4, 2],
-      [5, 5, 3, 4, 4, 4],
-      [5, 5, 5, 5, 4, 4]
+    [ [0, 0, 0, 2, 1, 1],
+      [0, 0, 2, 2, 1, 1],
+      [3, 3, 2, 2, 2, 1],
+      [3, 3, 2, 4, 1, 1],
+      [3, 3, 4, 4, 4, 1],
+      [3, 5, 4, 4, 4, 1]
     ]).
 
 example_puzzle(classic_8x8, 8, 1,
-    [ [0, 0, 0, 1, 1, 1, 2, 2],
-      [0, 0, 0, 1, 1, 1, 2, 2],
-      [3, 3, 0, 1, 1, 4, 4, 2],
-      [3, 3, 3, 5, 5, 4, 4, 2],
-      [3, 3, 3, 5, 5, 4, 4, 2],
-      [6, 6, 5, 5, 5, 4, 7, 7],
-      [6, 6, 6, 5, 7, 7, 7, 7],
-      [6, 6, 6, 6, 7, 7, 7, 7]
+    [ [2, 2, 2, 2, 0, 0, 0, 1],
+      [2, 2, 4, 4, 4, 4, 3, 1],
+      [2, 2, 4, 4, 4, 4, 3, 1],
+      [4, 4, 4, 4, 4, 4, 3, 3],
+      [4, 4, 4, 4, 4, 4, 4, 4],
+      [6, 6, 5, 4, 4, 4, 4, 4],
+      [6, 4, 4, 4, 4, 4, 4, 4],
+      [6, 6, 7, 7, 7, 7, 4, 4]
+    ]).
+
+example_puzzle(lantern_6x6, 6, 1,
+    [ [1, 1, 0, 0, 0, 0],
+      [1, 0, 0, 0, 0, 0],
+      [3, 0, 0, 2, 0, 0],
+      [3, 3, 3, 3, 3, 4],
+      [3, 3, 3, 3, 3, 4],
+      [3, 3, 5, 5, 4, 4]
+    ]).
+
+example_puzzle(lantern_8x8, 8, 1,
+    [ [0, 0, 0, 0, 2, 2, 2, 2],
+      [1, 1, 2, 0, 2, 2, 2, 2],
+      [3, 2, 2, 2, 2, 2, 2, 2],
+      [3, 5, 2, 2, 2, 2, 2, 6],
+      [5, 5, 5, 2, 2, 4, 4, 6],
+      [5, 5, 5, 5, 2, 5, 6, 6],
+      [5, 5, 5, 5, 5, 5, 5, 6],
+      [5, 5, 5, 5, 5, 7, 5, 6]
     ]).
 
 example_puzzle(double_8x8, 8, 2,
-    [ [0, 1, 2, 3, 4, 5, 6, 7],
+    [ [0, 0, 2, 3, 4, 5, 6, 7],
       [0, 1, 2, 3, 4, 5, 6, 7],
       [0, 1, 2, 3, 4, 5, 6, 7],
       [0, 1, 2, 3, 4, 5, 6, 7],
