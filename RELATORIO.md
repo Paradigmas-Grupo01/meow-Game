@@ -95,11 +95,11 @@ A aplicação é dividida em três camadas com papéis bem definidos. No navegad
 | `hint(+Regions, +Board, +CatsPerUnit, -Hint)` | `backend/prolog/meowdoku.pl:142` | Analisa a situação atual da partida e sugere uma jogada fundamentada, retornando a posição, o valor e uma explicação textual. |
 | `has_unique_solution(+Regions, +CatsPerUnit)` | `backend/prolog/meowdoku.pl:135` | Testa se um mapa possui uma única solução possível, buscando no máximo duas respostas com `findnsols/4`. |
 | `generate(+Size, +CatsPerUnit, -Regions, -Solution)` | `backend/prolog/meowdoku.pl:205` | Gera variações de mapas transferindo células de fronteira sem desconectar territórios (`region_connected/2`) e garantindo solução única. |
-| `example_puzzle(+Name, -Size, -CatsPerUnit, -Regions)` | `backend/prolog/meowdoku.pl:254` | Contém tabuleiros pré-configurados e validados para os tamanhos 6x6 e 8x8 no modo clássico (`K=1`) e 8x8 no modo avançado (`K=2`). |
+| `example_puzzle(+Name, -Size, -CatsPerUnit, -Regions)` | `backend/prolog/meowdoku.pl:254` | Contém 16 tabuleiros pré-configurados e validados para os tamanhos 6x6, 8x8, 9x9, 10x10 e 11x11 no modo clássico (`K=1`) e 8x8 no modo avançado (`K=2`). |
 
 ### 5.2 Conceitos do paradigma lógico utilizados
 
-- [x] Fatos e regras como base de conhecimento: banco de tabuleiros pré-configurados e regras de dedução textual de dicas em `backend/prolog/meowdoku.pl:142-201,254-303`.
+- [x] Fatos e regras como base de conhecimento: banco de tabuleiros pré-configurados e regras de dedução textual de dicas em `backend/prolog/meowdoku.pl:142-201,254-443`.
 - [x] Unificação e casamento de padrões: desestruturação de listas de coordenadas, pares `R-C` e termos compostos `hint/4` e `move/4` em `backend/prolog/meowdoku.pl:57-62,142-160,215-228`.
 - [x] Recursão (inclusive sobre listas): percurso sistemático da grade por meio de `enforce_rows/4`, `enforce_cols/4` e busca em largura `flood_region/2` em `backend/prolog/meowdoku.pl:70-78,248-252`.
 - [x] Backtracking e múltiplas soluções: busca com rotulação `labeling([ff, bisect], Cells)` e permutação de fronteiras em `backend/prolog/meowdoku.pl:30,225-228`.
@@ -178,12 +178,12 @@ Em `frontend/src/Main.elm` (linhas 80 a 99), o tipo `Msg` modela todas as intera
 ### 6.2 Conceitos do paradigma funcional utilizados
 
 - [x] Arquitetura Elm (Model, update, view): organização da aplicação no ciclo reativo padrão com `Browser.element` em `frontend/src/Main.elm:16-24`.
-- [x] Custom types e `case` exaustivo: modelagem das marcações com `CellMark` (`frontend/src/Meowdoku.elm:27-79`), erros de API com `ApiError` (`frontend/src/Api.elm:36-38`) e tratamento de eventos com `Msg` (`frontend/src/Main.elm:80-99,185-494`).
+- [x] Custom types e `case` exaustivo: modelagem das marcações com `CellMark` (`frontend/src/Meowdoku.elm:27-79`), erros de API com `ApiError` (`frontend/src/Api.elm:36-38`) e tratamento de eventos com `Msg` (`frontend/src/Main.elm:80-99,234-543`).
 - [x] `Maybe` e `Result` no lugar de null e exceções: acesso seguro às células com `getCell` retornando `Maybe Cell` (`frontend/src/Meowdoku.elm:129-132`) e tratamento de respostas HTTP com `Result ApiError a` e `Result String a` (`frontend/src/Api.elm:136-180`).
 - [x] Funções de ordem superior e aplicação parcial: contagem e validação de gatos por linha, coluna e região usando `List.filter`, `List.any`, `List.all` e `Array.map` em `frontend/src/Meowdoku.elm:161-242`.
 - [x] Composição (`|>`, `>>`): encadeamento de transformações na inicialização do tabuleiro, conversão para matriz e decodificação HTTP em `frontend/src/Meowdoku.elm:97-126,245-280` e `frontend/src/Api.elm:138,158`.
 - [x] Decoders e encoders JSON: serialização de matrizes com `Encode.list` e decodificação validada das respostas da API usando `Decode.map4` e `Decode.andThen` em `frontend/src/Api.elm:67-134`.
-- [x] Comandos e subscriptions (efeitos controlados): envio de requisições HTTP assíncronas em `Cmd Msg` (`frontend/src/Api.elm:41-64`) e captura global do fim de arraste com `Browser.Events.onMouseUp` em `subscriptions` (`frontend/src/Main.elm:496-502`).
+- [x] Comandos e subscriptions (efeitos controlados): envio de requisições HTTP assíncronas em `Cmd Msg` (`frontend/src/Api.elm:41-64`) e captura global do fim de arraste com `Browser.Events.onMouseUp` em `subscriptions` (`frontend/src/Main.elm:545-551`).
 - [x] Imutabilidade e atualização de records: atualização pura do tabuleiro e do estado da partida gerando novas instâncias com `{ board | rows = ... }` em `frontend/src/Meowdoku.elm:145,213,280`.
 
 ### 6.3 Trecho em destaque
@@ -253,7 +253,7 @@ Durante os testes, demos atenção especial aos casos de borda: células nos can
 
 Em tabuleiros com dimensões superiores a 10x10 que possuam regiões muito recortadas, a etapa de rotulação do CLP(FD) pode levar alguns segundos adicionais para encontrar e comprovar a unicidade da solução, já que o número de variáveis binárias e combinações cresce de forma quadrática.
 
-Outro ponto identificado é que, embora o predicado `generate/4` em `backend/prolog/meowdoku.pl:205-252` já gere variações de mapas conexos com solução única em Prolog (testado via `plunit`), a interface web atual seleciona entre os 5 mapas pré-configurados da rota `/api/meowdoku/example` para oferecer uma progressão estruturada de fases ao jogador. Além disso, o predicado `hint/4` calcula a dica comparando o estado atual com a solução do mapa de regiões (`backend/prolog/meowdoku.pl:142-160`), razão pela qual o teste de dica sobre tabuleiro inconsistente em `backend/tests/test_api.py:183` está marcado como `xfail`.
+Outro ponto identificado é que, embora o predicado `generate/4` em `backend/prolog/meowdoku.pl:205-252` já gere variações de mapas conexos com solução única em Prolog (testado via `plunit`), a interface web atual seleciona entre os 16 mapas pré-configurados da rota `/api/meowdoku/example` para oferecer uma progressão estruturada de fases ao jogador. Além disso, o predicado `hint/4` calcula a dica comparando o estado atual com a solução do mapa de regiões (`backend/prolog/meowdoku.pl:142-160`), razão pela qual o teste de dica sobre tabuleiro inconsistente em `backend/tests/test_api.py:183` está marcado como `xfail`.
 
 Caso o grupo tivesse mais semanas para trabalhar no projeto, a prioridade seria expor o gerador `generate/4` em uma rota dedicada de desafios infinitos no frontend, refinar o `hint/4` para validar a consistência parcial dos gatos já posicionados pelo jogador antes de sugerir o próximo passo e adicionar um editor visual para criação de mapas personalizados.
 

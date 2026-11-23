@@ -90,7 +90,8 @@ test(uniqueness_rejects_no_solution, [fail]) :-
     has_unique_solution([[0,1],[0,1]], 1).
 
 test(four_classic_fallbacks_are_connected_and_unique) :-
-    findall(Size, example_puzzle(_, Size, 1, _), Sizes),
+    ClassicNames = [classic_6x6, lantern_6x6, classic_8x8, lantern_8x8],
+    findall(Size, (member(Name, ClassicNames), example_puzzle(Name, Size, 1, _)), Sizes),
     msort(Sizes, [6,6,8,8]),
     forall(example_puzzle(_, Size, K, Regions),
            (connected_partition(Regions, Size), has_unique_solution(Regions, K))).

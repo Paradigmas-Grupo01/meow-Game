@@ -86,7 +86,7 @@ CatsPerUnit = Annotated[int, Field(ge=1, le=2, description="Gatos por linha, col
 Cell = Annotated[int, Field(ge=-1, le=1, description="-1 = marcada com X, 0 = vazia, 1 = gato.")]
 Regions = Annotated[
     list[list[Annotated[int, Field(ge=0)]]],
-    Field(min_length=4, max_length=10, description="Id do território de cada casa (N x N, ids 0..N-1)."),
+    Field(min_length=4, max_length=12, description="Id do território de cada casa (N x N, ids 0..N-1)."),
 ]
 
 EXAMPLE_REGIONS = [

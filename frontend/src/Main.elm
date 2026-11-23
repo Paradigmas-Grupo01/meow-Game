@@ -100,7 +100,23 @@ type Msg
 
 puzzleNames : List String
 puzzleNames =
-    [ "classic_6x6", "lantern_6x6", "classic_8x8", "lantern_8x8", "double_8x8" ]
+    [ "classic_6x6"
+    , "lantern_6x6"
+    , "classic_8x8"
+    , "lantern_8x8"
+    , "double_8x8"
+    , "level_501_8x8"
+    , "level_502_10x10"
+    , "level_503_10x10"
+    , "level_504_9x9"
+    , "level_506_10x10"
+    , "level_507_10x10"
+    , "level_508_10x10"
+    , "level_510_10x10"
+    , "level_513_10x10"
+    , "level_514_9x9"
+    , "level_515_11x11"
+    ]
 
 
 nextPuzzleName : String -> String
@@ -137,6 +153,39 @@ puzzleLabel name =
 
         "double_8x8" ->
             "Fase 5: 8x8 Modo 2 Gatos"
+
+        "level_501_8x8" ->
+            "Fase 6: 8x8 Nível 501"
+
+        "level_502_10x10" ->
+            "Fase 7: 10x10 Nível 502"
+
+        "level_503_10x10" ->
+            "Fase 8: 10x10 Nível 503"
+
+        "level_504_9x9" ->
+            "Fase 9: 9x9 Nível 504"
+
+        "level_506_10x10" ->
+            "Fase 10: 10x10 Nível 506"
+
+        "level_507_10x10" ->
+            "Fase 11: 10x10 Nível 507"
+
+        "level_508_10x10" ->
+            "Fase 12: 10x10 Nível 508"
+
+        "level_510_10x10" ->
+            "Fase 13: 10x10 Nível 510"
+
+        "level_513_10x10" ->
+            "Fase 14: 10x10 Nível 513"
+
+        "level_514_9x9" ->
+            "Fase 15: 9x9 Nível 514"
+
+        "level_515_11x11" ->
+            "Fase 16: 11x11 Nível 515"
 
         _ ->
             name
@@ -781,6 +830,17 @@ viewLevelSelectorModal model =
                     , viewLevelCard model "classic_8x8" "3" "8x8 Clássico" "Normal"
                     , viewLevelCard model "lantern_8x8" "4" "8x8 Lanterna" "Normal"
                     , viewLevelCard model "double_8x8" "5" "8x8 2 Gatos" "Ultra (K=2)"
+                    , viewLevelCard model "level_501_8x8" "6" "8x8 Nível 501" "Normal"
+                    , viewLevelCard model "level_502_10x10" "7" "10x10 Nível 502" "Normal"
+                    , viewLevelCard model "level_503_10x10" "8" "10x10 Nível 503" "Normal"
+                    , viewLevelCard model "level_504_9x9" "9" "9x9 Nível 504" "Normal"
+                    , viewLevelCard model "level_506_10x10" "10" "10x10 Nível 506" "Normal"
+                    , viewLevelCard model "level_507_10x10" "11" "10x10 Nível 507" "Normal"
+                    , viewLevelCard model "level_508_10x10" "12" "10x10 Nível 508" "Normal"
+                    , viewLevelCard model "level_510_10x10" "13" "10x10 Nível 510" "Difícil"
+                    , viewLevelCard model "level_513_10x10" "14" "10x10 Nível 513" "Normal"
+                    , viewLevelCard model "level_514_9x9" "15" "9x9 Nível 514" "Normal"
+                    , viewLevelCard model "level_515_11x11" "16" "11x11 Nível 515" "Master"
                     ]
                 ]
             ]

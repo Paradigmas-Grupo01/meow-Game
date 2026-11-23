@@ -56,6 +56,9 @@
 
     --region-9: #e2e8f0; /* Cinza Neutro */
     --region-9-border: #64748b;
+
+    --region-10: #e0e7ff; /* Índigo Pastel */
+    --region-10-border: #6366f1;
 }
 
 :root[data-theme="dark"],
@@ -106,6 +109,9 @@ body.dark-theme,
 
     --region-9: #475569; /* Ardósia */
     --region-9-border: #94a3b8;
+
+    --region-10: #312e81; /* Índigo Noturno */
+    --region-10-border: #818cf8;
 }
 
 * {
@@ -360,6 +366,7 @@ body {
 .region-7 { background: var(--region-7); border-color: var(--region-7-border); }
 .region-8 { background: var(--region-8); border-color: var(--region-8-border); }
 .region-9 { background: var(--region-9); border-color: var(--region-9-border); }
+.region-10 { background: var(--region-10); border-color: var(--region-10-border); }
 
 .cell-mark-x {
     font-size: clamp(16px, 3.2vw, 26px);
@@ -586,7 +593,9 @@ body {
 .modal-card--levels,
 .modal-card--rules {
     text-align: left;
-    max-width: 520px;
+    max-width: 620px;
+    max-height: 85vh;
+    overflow-y: auto;
 }
 
 .levels-header {
