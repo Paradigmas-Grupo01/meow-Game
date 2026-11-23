@@ -105,17 +105,17 @@ puzzleNames =
     , "classic_8x8"
     , "lantern_8x8"
     , "double_8x8"
-    , "level_501_8x8"
-    , "level_502_10x10"
-    , "level_503_10x10"
-    , "level_504_9x9"
-    , "level_506_10x10"
-    , "level_507_10x10"
-    , "level_508_10x10"
-    , "level_510_10x10"
-    , "level_513_10x10"
-    , "level_514_9x9"
-    , "level_515_11x11"
+    , "level_06_8x8"
+    , "level_07_9x9"
+    , "level_08_9x9"
+    , "level_09_10x10"
+    , "level_10_10x10"
+    , "level_11_10x10"
+    , "level_12_10x10"
+    , "level_13_10x10"
+    , "level_14_10x10"
+    , "level_15_10x10"
+    , "level_16_11x11"
     ]
 
 
@@ -154,38 +154,38 @@ puzzleLabel name =
         "double_8x8" ->
             "Fase 5: 8x8 Modo 2 Gatos"
 
-        "level_501_8x8" ->
-            "Fase 6: 8x8 Nível 501"
+        "level_06_8x8" ->
+            "Fase 6: 8x8 Avançado"
 
-        "level_502_10x10" ->
-            "Fase 7: 10x10 Nível 502"
+        "level_07_9x9" ->
+            "Fase 7: 9x9 Jardim"
 
-        "level_503_10x10" ->
-            "Fase 8: 10x10 Nível 503"
+        "level_08_9x9" ->
+            "Fase 8: 9x9 Labirinto"
 
-        "level_504_9x9" ->
-            "Fase 9: 9x9 Nível 504"
+        "level_09_10x10" ->
+            "Fase 9: 10x10 Mosaico"
 
-        "level_506_10x10" ->
-            "Fase 10: 10x10 Nível 506"
+        "level_10_10x10" ->
+            "Fase 10: 10x10 Castelo"
 
-        "level_507_10x10" ->
-            "Fase 11: 10x10 Nível 507"
+        "level_11_10x10" ->
+            "Fase 11: 10x10 Floresta"
 
-        "level_508_10x10" ->
-            "Fase 12: 10x10 Nível 508"
+        "level_12_10x10" ->
+            "Fase 12: 10x10 Montanha"
 
-        "level_510_10x10" ->
-            "Fase 13: 10x10 Nível 510"
+        "level_13_10x10" ->
+            "Fase 13: 10x10 Galáxia"
 
-        "level_513_10x10" ->
-            "Fase 14: 10x10 Nível 513"
+        "level_14_10x10" ->
+            "Fase 14: 10x10 Eclipse"
 
-        "level_514_9x9" ->
-            "Fase 15: 9x9 Nível 514"
+        "level_15_10x10" ->
+            "Fase 15: 10x10 Imperial"
 
-        "level_515_11x11" ->
-            "Fase 16: 11x11 Nível 515"
+        "level_16_11x11" ->
+            "Fase 16: 11x11 Mestre"
 
         _ ->
             name
@@ -830,17 +830,17 @@ viewLevelSelectorModal model =
                     , viewLevelCard model "classic_8x8" "3" "8x8 Clássico" "Normal"
                     , viewLevelCard model "lantern_8x8" "4" "8x8 Lanterna" "Normal"
                     , viewLevelCard model "double_8x8" "5" "8x8 2 Gatos" "Ultra (K=2)"
-                    , viewLevelCard model "level_501_8x8" "6" "8x8 Nível 501" "Normal"
-                    , viewLevelCard model "level_502_10x10" "7" "10x10 Nível 502" "Normal"
-                    , viewLevelCard model "level_503_10x10" "8" "10x10 Nível 503" "Normal"
-                    , viewLevelCard model "level_504_9x9" "9" "9x9 Nível 504" "Normal"
-                    , viewLevelCard model "level_506_10x10" "10" "10x10 Nível 506" "Normal"
-                    , viewLevelCard model "level_507_10x10" "11" "10x10 Nível 507" "Normal"
-                    , viewLevelCard model "level_508_10x10" "12" "10x10 Nível 508" "Normal"
-                    , viewLevelCard model "level_510_10x10" "13" "10x10 Nível 510" "Difícil"
-                    , viewLevelCard model "level_513_10x10" "14" "10x10 Nível 513" "Normal"
-                    , viewLevelCard model "level_514_9x9" "15" "9x9 Nível 514" "Normal"
-                    , viewLevelCard model "level_515_11x11" "16" "11x11 Nível 515" "Master"
+                    , viewLevelCard model "level_06_8x8" "6" "8x8 Avançado" "Normal"
+                    , viewLevelCard model "level_07_9x9" "7" "9x9 Jardim" "Normal"
+                    , viewLevelCard model "level_08_9x9" "8" "9x9 Labirinto" "Normal"
+                    , viewLevelCard model "level_09_10x10" "9" "10x10 Mosaico" "Normal"
+                    , viewLevelCard model "level_10_10x10" "10" "10x10 Castelo" "Normal"
+                    , viewLevelCard model "level_11_10x10" "11" "10x10 Floresta" "Normal"
+                    , viewLevelCard model "level_12_10x10" "12" "10x10 Montanha" "Normal"
+                    , viewLevelCard model "level_13_10x10" "13" "10x10 Galáxia" "Normal"
+                    , viewLevelCard model "level_14_10x10" "14" "10x10 Eclipse" "Difícil"
+                    , viewLevelCard model "level_15_10x10" "15" "10x10 Imperial" "Normal"
+                    , viewLevelCard model "level_16_11x11" "16" "11x11 Mestre" "Master"
                     ]
                 ]
             ]

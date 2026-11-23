@@ -122,7 +122,7 @@ def test_meowdoku_example_unknown_name():
     assert "classic_6x6" in response.json()["detail"]
 
 
-@pytest.mark.parametrize("name", ["classic_6x6", "lantern_8x8", "double_8x8", "level_515_11x11"])
+@pytest.mark.parametrize("name", ["classic_6x6", "lantern_8x8", "double_8x8", "level_16_11x11"])
 def test_meowdoku_solve_respects_units(name):
     example = meowdoku_example(name)
     solution = meowdoku_solution(example)
