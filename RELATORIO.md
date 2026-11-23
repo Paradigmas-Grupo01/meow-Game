@@ -15,7 +15,7 @@
 - **Nome do projeto:** Meowdoku
 - **Nome do grupo:** Grupo 01 - Meowdoku
 - **Repositório:** https://github.com/Paradigmas-Grupo01/meow-Game
-- **Commit ou tag entregue:** `ae9af37`
+- **Commit ou tag entregue:** `entrega-final`
 - **Ponto de partida:** remix original
 - **Slides da apresentação oral:** não há
 
