@@ -17,7 +17,7 @@
 - **Repositório:** https://github.com/Paradigmas-Grupo01/meow-Game
 - **Commit ou tag entregue:** `entrega-final`
 - **Ponto de partida:** remix original
-- **Slides da apresentação oral:** não há
+- **Slides da apresentação oral:** [Canva](https://canva.link/meowdoku)
 
 ## 2. Resumo
 
